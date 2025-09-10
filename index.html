@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StudySync - Collaborative Timer</title>
+    <style>
+        :root {
+            --bg: #0f1724;
+            --card: #0b1220;
+            --muted: #9aa6b2;
+            --accent: #7dd3fc;
+            --accent-2: #60a5fa;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        html, body {
+            height: 100%;
+            font-family: Inter, ui-sans-serif, system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+            background: linear-gradient(180deg, #071020 0%, #071426 60%);
+            color: #e6eef6;
+            overflow-x: hidden;
+        }
+        
+        .container {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .card {
+            width: min(900px, 95vw);
+            background: linear-gradient(180deg, rgba(255,255,255,0.02), transparent);
+            border: 1px solid rgba(255,255,255,0.04);
+            padding: 32px;
+            border-radius: 16px;
+            box-shadow: 0 8px 40px rgba(2,6,23,0.6);
+            backdrop-filter: blur(10px);
+        }
+        
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+        
+        .title {
+            font-size: 24px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+        
+        .status-bar {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+        
+        .participants {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255,255,255,0.03);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+        }
+        
+        .dot {
+            width: 8px;
+            height: 8px;
+            background: var(--accent);
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .timer-section {
+            text-align: center;
+            margin: 40px 0;
+        }
+        
+        .mode-display {
+            font-size: 18px;
+            color: var(--accent);
+            margin-bottom: 16px;
+            text-transform: capitalize;
+        }
+        
+        .timer-display {
+            font-size: clamp(4rem, 12vw, 8rem);
+            font-weight: 900;
+            line-height: 1;
+            margin-bottom: 32px;
+            background: linear-gradient(135deg, var(--accent), var(--accent-2));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 16px;
+            margin-bottom: 32px;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            background: transparent;
+            border: 1px solid rgba(255,255,255,0.1);
+            padding: 12px 24px;
+            border-radius: 12px;
+            color: inherit;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            min-width: 120px;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            background: rgba(255,255,255,0.05);
+            border-color: rgba(255,255,255,0.2);
+        }
+        
+        .btn:active {
+            transform: translateY(0);
+        }
+        
+        .btn.primary {
+            background: linear-gradient(135deg, var(--accent), var(--accent-2));
+            color: #042533;
+            border: none;
+        }
+        
+        .btn.primary:hover {
+            opacity: 0.9;
+            background: linear-gradient(135deg, var(--accent-2), var(--accent));
+        }
+        
+        .mode-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 32px;
+            flex-wrap: wrap;
+        }
+        
+        .mode-btn {
+            padding: 10px 20px;
+            border-radius: 20px;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.05);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 14px;
+        }
+        
+        .mode-btn:hover {
+            background: rgba(255,255,255,0.08);
+        }
+        
+        .mode-btn.active {
+            background: linear-gradient(135deg, var(--accent), var(--accent-2));
+            color: #042533;
+            border: none;
+        }
+        
+        .share-section {
+            background: rgba(255,255,255,0.02);
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 12px;
+            padding: 20px;
+        }
+        
+        .share-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: var(--accent);
+        }
+        
+        .share-url {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        
+        .url-input {
+            flex: 1;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.1);
+            padding: 10px 16px;
+            border-radius: 8px;
+            color: inherit;
+            font-size: 14px;
+            font-family: monospace;
+        }
+        
+        .url-input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+        
+        .share-actions {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+        
+        .toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        
+        .progress-ring {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 120px;
+            height: 120px;
+            opacity: 0.3;
+        }
+        
+        .progress-ring circle {
+            fill: none;
+            stroke: var(--accent);
+            stroke-width: 3;
+            stroke-linecap: round;
+            transform-origin: center;
+            transform: rotate(-90deg);
+            transition: stroke-dashoffset 0.5s ease;
+        }
+        
+        @media (max-width: 768px) {
+            .card {
+                padding: 20px;
+            }
+            
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .controls {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .btn {
+                width: 200px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <div class="header">
+                <h1 class="title">StudySync</h1>
+                <div class="status-bar">
+                    <div class="participants">
+                        <div class="dot"></div>
+                        <span id="participant-count">1 student</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="timer-section">
+                <div class="mode-display" id="mode-display">Focus Session</div>
+                <div style="position: relative; display: inline-block;">
+                    <div class="timer-display" id="timer-display">25:00</div>
+                    <svg class="progress-ring">
+                        <circle cx="60" cy="60" r="54" 
+                                stroke-dasharray="339.29" 
+                                stroke-dashoffset="0" 
+                                id="progress-circle">
+                        </circle>
+                    </svg>
+                </div>
+                
+                <div class="controls">
+                    <button class="btn primary" id="start-btn">Start</button>
+                    <button class="btn" id="reset-btn">Reset</button>
+                </div>
+                
+                <div class="mode-buttons">
+                    <div class="mode-btn active" data-mode="focus" data-duration="1500">Focus (25m)</div>
+                    <div class="mode-btn" data-mode="short-break" data-duration="300">Short Break (5m)</div>
+                    <div class="mode-btn" data-mode="long-break" data-duration="900">Long Break (15m)</div>
+                </div>
+            </div>
+            
+            <div class="share-section">
+                <div class="share-title">Study Together</div>
+                <div class="share-url">
+                    <input type="text" class="url-input" id="room-url" readonly placeholder="Click 'Create Room' to generate a shareable link">
+                </div>
+                <div class="share-actions">
+                    <button class="btn" id="create-room-btn">Create Room</button>
+                    <button class="btn" id="copy-btn" disabled>Copy Link</button>
+                    <button class="btn" id="join-room-btn">Join Room</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="toast" id="toast">Link copied to clipboard!</div>
+    
+    <script>
+        class StudyTimer {
+            constructor() {
+                this.currentMode = 'focus';
+                this.duration = 1500; // 25 minutes in seconds
+                this.timeLeft = this.duration;
+                this.isRunning = false;
+                this.isPaused = false;
+                this.startTime = null;
+                this.interval = null;
+                this.roomId = null;
+                this.isHost = false;
+                this.channel = null;
+                this.participants = new Set(['you']);
+                
+                this.initializeElements();
+                this.attachEventListeners();
+                this.checkForRoom();
+                this.setupBroadcastChannel();
+            }
+            
+            initializeElements() {
+                this.timerDisplay = document.getElementById('timer-display');
+                this.modeDisplay = document.getElementById('mode-display');
+                this.startBtn = document.getElementById('start-btn');
+                this.resetBtn = document.getElementById('reset-btn');
+                this.participantCount = document.getElementById('participant-count');
+                this.roomUrl = document.getElementById('room-url');
+                this.createRoomBtn = document.getElementById('create-room-btn');
+                this.copyBtn = document.getElementById('copy-btn');
+                this.joinRoomBtn = document.getElementById('join-room-btn');
+                this.toast = document.getElementById('toast');
+                this.progressCircle = document.getElementById('progress-circle');
+                this.modeButtons = document.querySelectorAll('.mode-btn');
+            }
+            
+            attachEventListeners() {
+                this.startBtn.addEventListener('click', () => this.toggleTimer());
+                this.resetBtn.addEventListener('click', () => this.resetTimer());
+                this.createRoomBtn.addEventListener('click', () => this.createRoom());
+                this.copyBtn.addEventListener('click', () => this.copyRoomUrl());
+                this.joinRoomBtn.addEventListener('click', () => this.joinRoom());
+                
+                this.modeButtons.forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const mode = btn.dataset.mode;
+                        const duration = parseInt(btn.dataset.duration);
+                        this.changeMode(mode, duration);
+                    });
+                });
+            }
+            
+            checkForRoom() {
+                const urlParams = new URLSearchParams(window.location.search);
+                const roomId = urlParams.get('room');
+                
+                if (roomId) {
+                    this.roomId = roomId;
+                    this.roomUrl.value = window.location.href;
+                    this.copyBtn.disabled = false;
+                    this.setupBroadcastChannel();
+                    this.joinExistingRoom();
+                }
+            }
+            
+            setupBroadcastChannel() {
+                if (!this.roomId) return;
+                
+                try {
+                    this.channel = new BroadcastChannel(`study-timer-${this.roomId}`);
+                    this.channel.addEventListener('message', (event) => {
+                        this.handleBroadcastMessage(event.data);
+                    });
+                    
+                    // Announce presence
+                    this.broadcastMessage({
+                        type: 'join',
+                        timestamp: Date.now()
+                    });
+                } catch (error) {
+                    console.warn('BroadcastChannel not supported');
+                }
+            }
+            
+            broadcastMessage(data) {
+                if (this.channel) {
+                    try {
+                        this.channel.postMessage(data);
+                    } catch (error) {
+                        console.warn('Failed to broadcast message:', error);
+                    }
+                }
+            }
+            
+            handleBroadcastMessage(data) {
+                switch (data.type) {
+                    case 'join':
+                        this.participants.add(`user-${data.timestamp}`);
+                        this.updateParticipantCount();
+                        // Send current state to new participant
+                        if (this.isHost) {
+                            this.broadcastTimerState();
+                        }
+                        break;
+                        
+                    case 'timer-state':
+                        if (!this.isHost) {
+                            this.syncWithHost(data);
+                        }
+                        break;
+                        
+                    case 'timer-action':
+                        if (!this.isHost) {
+                            this.handleRemoteAction(data.action, data.data);
+                        }
+                        break;
+                }
+            }
+            
+            syncWithHost(data) {
+                this.currentMode = data.mode;
+                this.duration = data.duration;
+                this.timeLeft = data.timeLeft;
+                this.isRunning = data.isRunning;
+                this.isPaused = data.isPaused;
+                
+                if (data.isRunning && data.startTime) {
+                    const elapsed = (Date.now() - data.startTime) / 1000;
+                    this.timeLeft = Math.max(0, data.duration - elapsed);
+                    this.startLocalTimer();
+                } else {
+                    this.stopLocalTimer();
+                }
+                
+                this.updateDisplay();
+                this.updateModeDisplay();
+                this.updateButtons();
+            }
+            
+            handleRemoteAction(action, data) {
+                switch (action) {
+                    case 'start':
+                        this.startTimer(false);
+                        break;
+                    case 'pause':
+                        this.pauseTimer(false);
+                        break;
+                    case 'reset':
+                        this.resetTimer(false);
+                        break;
+                    case 'mode-change':
+                        this.changeMode(data.mode, data.duration, false);
+                        break;
+                }
+            }
+            
+            createRoom() {
+                this.roomId = this.generateRoomId();
+                this.isHost = true;
+                
+                const url = new URL(window.location);
+                url.searchParams.set('room', this.roomId);
+                window.history.pushState({}, '', url);
+                
+                this.roomUrl.value = url.toString();
+                this.copyBtn.disabled = false;
+                
+                this.setupBroadcastChannel();
+                this.showToast('Room created! Share the link with your study partners.');
+            }
+            
+            joinRoom() {
+                const roomCode = prompt('Enter room code (the letters/numbers after ?room= in the link):');
+                if (roomCode) {
+                    this.roomId = roomCode;
+                    this.isHost = false;
+                    
+                    const url = new URL(window.location);
+                    url.searchParams.set('room', roomCode);
+                    window.history.pushState({}, '', url);
+                    
+                    this.roomUrl.value = url.toString();
+                    this.copyBtn.disabled = false;
+                    
+                    this.setupBroadcastChannel();
+                    this.joinExistingRoom();
+                }
+            }
+            
+            joinExistingRoom() {
+                this.isHost = false;
+                this.showToast('Joined study room! Syncing with other participants...');
+            }
+            
+            generateRoomId() {
+                return Math.random().toString(36).substring(2, 8).toLowerCase();
+            }
+            
+            copyRoomUrl() {
+                this.roomUrl.select();
+                navigator.clipboard.writeText(this.roomUrl.value).then(() => {
+                    this.showToast('Link copied to clipboard!');
+                }).catch(() => {
+                    // Fallback for older browsers
+                    document.execCommand('copy');
+                    this.showToast('Link copied to clipboard!');
+                });
+            }
+            
+            toggleTimer() {
+                if (this.isRunning) {
+                    this.pauseTimer();
+                } else {
+                    this.startTimer();
+                }
+            }
+            
+            startTimer(broadcast = true) {
+                this.isRunning = true;
+                this.isPaused = false;
+                this.startTime = Date.now() - (this.duration - this.timeLeft) * 1000;
+                
+                this.startLocalTimer();
+                this.updateButtons();
+                
+                if (broadcast) {
+                    this.broadcastTimerState();
+                    this.broadcastMessage({
+                        type: 'timer-action',
+                        action: 'start'
+                    });
+                }
+            }
+            
+            pauseTimer(broadcast = true) {
+                this.isRunning = false;
+                this.isPaused = true;
+                
+                this.stopLocalTimer();
+                this.updateButtons();
+                
+                if (broadcast) {
+                    this.broadcastTimerState();
+                    this.broadcastMessage({
+                        type: 'timer-action',
+                        action: 'pause'
+                    });
+                }
+            }
+            
+            resetTimer(broadcast = true) {
+                this.isRunning = false;
+                this.isPaused = false;
+                this.timeLeft = this.duration;
+                this.startTime = null;
+                
+                this.stopLocalTimer();
+                this.updateDisplay();
+                this.updateButtons();
+                this.updateProgress();
+                
+                if (broadcast) {
+                    this.broadcastTimerState();
+                    this.broadcastMessage({
+                        type: 'timer-action',
+                        action: 'reset'
+                    });
+                }
+            }
+            
+            changeMode(mode, duration, broadcast = true) {
+                this.currentMode = mode;
+                this.duration = duration;
+                this.resetTimer(false);
+                
+                this.updateModeButtons();
+                this.updateModeDisplay();
+                
+                if (broadcast) {
+                    this.broadcastTimerState();
+                    this.broadcastMessage({
+                        type: 'timer-action',
+                        action: 'mode-change',
+                        data: { mode, duration }
+                    });
+                }
+            }
+            
+            startLocalTimer() {
+                this.stopLocalTimer();
+                this.interval = setInterval(() => {
+                    if (this.isRunning) {
+                        const elapsed = (Date.now() - this.startTime) / 1000;
+                        this.timeLeft = Math.max(0, this.duration - elapsed);
+                        
+                        this.updateDisplay();
+                        this.updateProgress();
+                        
+                        if (this.timeLeft <= 0) {
+                            this.onTimerComplete();
+                        }
+                    }
+                }, 100);
+            }
+            
+            stopLocalTimer() {
+                if (this.interval) {
+                    clearInterval(this.interval);
+                    this.interval = null;
+                }
+            }
+            
+            onTimerComplete() {
+                this.isRunning = false;
+                this.timeLeft = 0;
+                this.stopLocalTimer();
+                this.updateButtons();
+                
+                // Play notification sound
+                this.playNotificationSound();
+                
+                // Show completion message
+                const modeText = this.currentMode === 'focus' ? 'Focus session' : 'Break';
+                this.showToast(`${modeText} complete! Great work! 🎉`);
+                
+                // Auto-suggest next mode
+                setTimeout(() => {
+                    if (this.currentMode === 'focus') {
+                        this.showToast('Ready for a break?');
+                    } else {
+                        this.showToast('Ready to focus again?');
+                    }
+                }, 2000);
+                
+                if (this.isHost || !this.roomId) {
+                    this.broadcastTimerState();
+                }
+            }
+            
+            playNotificationSound() {
+                // Create a simple beep sound using Web Audio API
+                try {
+                    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    const oscillator = audioContext.createOscillator();
+                    const gainNode = audioContext.createGain();
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(audioContext.destination);
+                    
+                    oscillator.frequency.value = 800;
+                    oscillator.type = 'sine';
+                    
+                    gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+                    gainNode.gain.linearRampToValueAtTime(0.3, audioContext.currentTime + 0.1);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+                    
+                    oscillator.start(audioContext.currentTime);
+                    oscillator.stop(audioContext.currentTime + 0.5);
+                } catch (error) {
+                    console.warn('Audio notification not supported');
+                }
+            }
+            
+            broadcastTimerState() {
+                if (!this.roomId || !this.isHost) return;
+                
+                this.broadcastMessage({
+                    type: 'timer-state',
+                    mode: this.currentMode,
+                    duration: this.duration,
+                    timeLeft: this.timeLeft,
+                    isRunning: this.isRunning,
+                    isPaused: this.isPaused,
+                    startTime: this.startTime
+                });
+            }
+            
+            updateDisplay() {
+                const minutes = Math.floor(this.timeLeft / 60);
+                const seconds = Math.floor(this.timeLeft % 60);
+                this.timerDisplay.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            }
+            
+            updateProgress() {
+                const progress = (this.duration - this.timeLeft) / this.duration;
+                const circumference = 2 * Math.PI * 54;
+                const offset = circumference * (1 - progress);
+                this.progressCircle.style.strokeDashoffset = offset;
+            }
+            
+            updateButtons() {
+                if (this.isRunning) {
+                    this.startBtn.textContent = 'Pause';
+                    this.startBtn.classList.remove('primary');
+                    this.startBtn.classList.add('primary');
+                } else if (this.isPaused) {
+                    this.startBtn.textContent = 'Resume';
+                    this.startBtn.classList.add('primary');
+                } else {
+                    this.startBtn.textContent = 'Start';
+                    this.startBtn.classList.add('primary');
+                }
+            }
+            
+            updateModeDisplay() {
+                const modeNames = {
+                    'focus': 'Focus Session',
+                    'short-break': 'Short Break',
+                    'long-break': 'Long Break'
+                };
+                this.modeDisplay.textContent = modeNames[this.currentMode] || 'Focus Session';
+            }
+            
+            updateModeButtons() {
+                this.modeButtons.forEach(btn => {
+                    btn.classList.toggle('active', btn.dataset.mode === this.currentMode);
+                });
+            }
+            
+            updateParticipantCount() {
+                const count = this.participants.size;
+                this.participantCount.textContent = count === 1 ? '1 student' : `${count} students`;
+            }
+            
+            showToast(message) {
+                this.toast.textContent = message;
+                this.toast.classList.add('show');
+                setTimeout(() => {
+                    this.toast.classList.remove('show');
+                }, 3000);
+            }
+        }
+        
+        // Initialize the timer when the page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            new StudyTimer();
+        });
+    </script>
+</body>
+</html>
