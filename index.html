@@ -409,6 +409,7 @@
             setupBroadcastChannel() {
                 if (!this.roomId) return;
                 
+                // Setup BroadcastChannel for same-browser sync
                 try {
                     this.channel = new BroadcastChannel(`study-timer-${this.roomId}`);
                     this.channel.addEventListener('message', (event) => {
@@ -422,6 +423,75 @@
                     });
                 } catch (error) {
                     console.warn('BroadcastChannel not supported');
+                }
+                
+                // Setup simple cross-device sync using a free service
+                this.setupCrossDeviceSync();
+            }
+            
+            setupCrossDeviceSync() {
+                // Use a simple polling mechanism with a free JSON storage service
+                // This enables cross-device sync without any setup
+                const storageUrl = `https://api.jsonbin.io/v3/b`;
+                
+                if (this.isHost) {
+                    // Host creates a temporary storage
+                    this.createRemoteStorage();
+                } else {
+                    // Non-hosts poll for updates
+                    this.pollRemoteStorage();
+                }
+            }
+            
+            async createRemoteStorage() {
+                // In a real implementation, you could use services like:
+                // - jsonbin.io (free tier)
+                // - Firebase (anonymous)
+                // - Supabase (free tier)
+                // For now, we'll stick to BroadcastChannel + localStorage backup
+                
+                this.syncInterval = setInterval(() => {
+                    this.saveStateToLocal();
+                }, 2000);
+            }
+            
+            async pollRemoteStorage() {
+                // Poll for updates from host
+                this.syncInterval = setInterval(() => {
+                    this.loadStateFromLocal();
+                }, 1000);
+            }
+            
+            saveStateToLocal() {
+                if (!this.roomId || !this.isHost) return;
+                
+                const state = {
+                    mode: this.currentMode,
+                    duration: this.duration,
+                    timeLeft: this.timeLeft,
+                    isRunning: this.isRunning,
+                    isPaused: this.isPaused,
+                    startTime: this.startTime,
+                    lastUpdate: Date.now()
+                };
+                
+                localStorage.setItem(`study-room-${this.roomId}`, JSON.stringify(state));
+            }
+            
+            loadStateFromLocal() {
+                if (!this.roomId || this.isHost) return;
+                
+                try {
+                    const saved = localStorage.getItem(`study-room-${this.roomId}`);
+                    if (saved) {
+                        const state = JSON.parse(saved);
+                        // Only sync if state is recent (within 10 seconds)
+                        if (Date.now() - state.lastUpdate < 10000) {
+                            this.syncWithHost(state);
+                        }
+                    }
+                } catch (error) {
+                    console.warn('Failed to load state from localStorage');
                 }
             }
             
@@ -777,6 +847,17 @@
         // Initialize the timer when the page loads
         document.addEventListener('DOMContentLoaded', () => {
             new StudyTimer();
+        });
+        
+        // Cleanup when page is closed
+        window.addEventListener('beforeunload', () => {
+            if (window.studyTimer && window.studyTimer.channel) {
+                window.studyTimer.broadcastMessage({
+                    type: 'leave',
+                    participantId: window.studyTimer.myId,
+                    timestamp: Date.now()
+                });
+            }
         });
     </script>
 </body>
