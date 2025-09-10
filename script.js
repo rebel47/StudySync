@@ -127,8 +127,21 @@ class StudyTimer {
     }
     
     checkForRoom() {
-        const urlParams = new URLSearchParams(window.location.search);
-        const roomId = urlParams.get('room');
+        // Handle both http:// and file:// URLs
+        let roomId = null;
+        
+        if (window.location.protocol === 'file:') {
+            // For file:// URLs, parse the search string manually
+            const search = window.location.search;
+            if (search) {
+                const params = new URLSearchParams(search);
+                roomId = params.get('room');
+            }
+        } else {
+            // For http:// URLs, use standard URLSearchParams
+            const urlParams = new URLSearchParams(window.location.search);
+            roomId = urlParams.get('room');
+        }
         
         if (roomId) {
             this.roomId = roomId;
@@ -141,7 +154,6 @@ class StudyTimer {
     
     setupBroadcastChannel() {
         if (!this.roomId) return;
-        
         try {
             this.channel = new BroadcastChannel(`study-timer-${this.roomId}`);
             this.channel.addEventListener('message', (event) => {
@@ -173,6 +185,7 @@ class StudyTimer {
             this.updateParticipantCount();
         } catch (error) {
             console.warn('BroadcastChannel not supported');
+            this.showToast('ERROR: BroadcastChannel not supported. Open with Live Server or http:// URL for collaboration.');
             // Fallback for single user
             this.updateParticipantCount();
         }
@@ -181,7 +194,7 @@ class StudyTimer {
     startHeartbeat() {
         // Send heartbeat every 2 seconds
         this.heartbeatInterval = setInterval(() => {
-            if (this.channel) {
+            if (this.channel && this.roomId) {
                 this.broadcastMessage({
                     type: 'heartbeat',
                     participantId: this.myId,
@@ -195,7 +208,7 @@ class StudyTimer {
         // Clean up stale participants every 5 seconds
         this.cleanupInterval = setInterval(() => {
             const now = Date.now();
-            const timeout = 8000; // 8 seconds timeout
+            const timeout = 15000; // 15 seconds timeout (increased from 8)
             
             let removedAny = false;
             for (const [id, participant] of this.participants.entries()) {
@@ -242,10 +255,13 @@ class StudyTimer {
     broadcastMessage(data) {
         if (this.channel) {
             try {
+                console.log('Broadcasting message:', data.type, 'to room:', this.roomId);
                 this.channel.postMessage(data);
             } catch (error) {
                 console.warn('Failed to broadcast message:', error);
             }
+        } else {
+            console.warn('No broadcast channel available');
         }
     }
     
@@ -253,6 +269,7 @@ class StudyTimer {
         // Ignore messages from myself
         if (data.participantId === this.myId) return;
         
+        console.log('Received message:', data.type, 'from:', data.participantId);
         switch (data.type) {
             case 'join':
                 this.participants.set(data.participantId, {
@@ -262,15 +279,27 @@ class StudyTimer {
                     isHost: data.isHost || false
                 });
                 this.updateParticipantCount();
-                
                 // If I'm the host, send current state to new participant
                 if (this.isHost) {
-                    setTimeout(() => {
-                        this.broadcastTimerState();
-                    }, 500);
+                    this.broadcastTimerState();
+                    // Also broadcast full participant list
+                    this.broadcastMessage({
+                        type: 'participant-list',
+                        participants: Array.from(this.participants.values()),
+                        timestamp: Date.now()
+                    });
                 }
                 break;
-                
+            case 'participant-list':
+                // Sync participant list from host
+                if (!this.isHost && Array.isArray(data.participants)) {
+                    this.participants.clear();
+                    for (const p of data.participants) {
+                        this.participants.set(p.id, p);
+                    }
+                    this.updateParticipantCount();
+                }
+                break;
             case 'heartbeat':
                 if (this.participants.has(data.participantId)) {
                     this.participants.get(data.participantId).lastSeen = data.timestamp;
@@ -278,10 +307,9 @@ class StudyTimer {
                 break;
                 
             case 'timer-state':
-                // Accept timer state from any participant initially, then verify host status
-                const sender = this.participants.get(data.participantId);
-                if (!this.isHost && (sender && sender.isHost || !sender)) {
-                    // If we don't know the sender yet, assume they might be host
+                console.log('Received timer state from:', data.participantId, 'mode:', data.mode, 'timeLeft:', data.timeLeft);
+                // Accept timer state from any participant when not host
+                if (!this.isHost) {
                     this.syncWithHost(data);
                 }
                 break;
@@ -306,13 +334,13 @@ class StudyTimer {
             case 'request-state':
                 // Only host responds to state requests
                 if (this.isHost) {
-                    setTimeout(() => {
-                        this.broadcastTimerState();
-                    }, 200);
+                    // Respond immediately
+                    this.broadcastTimerState();
                 }
                 break;
                 
             case 'chat-message':
+                console.log('Received chat message from:', data.userName, 'message:', data.message);
                 if (this.chatMessages) {
                     this.addChatMessage(data.message, 'other', data.userName);
                     if (!this.isChatOpen) {
@@ -321,10 +349,23 @@ class StudyTimer {
                     }
                 }
                 break;
+                
+            case 'chat-history':
+                // Sync chat history from host
+                if (!this.isHost && Array.isArray(data.history)) {
+                    this.chatMessages.innerHTML = '';
+                    for (const html of data.history) {
+                        const div = document.createElement('div');
+                        div.innerHTML = html;
+                        this.chatMessages.appendChild(div);
+                    }
+                }
+                break;
         }
     }
     
     syncWithHost(data) {
+        console.log('Syncing with host data:', data);
         this.currentMode = data.mode;
         this.duration = data.duration;
         this.timeLeft = data.timeLeft;
@@ -337,6 +378,7 @@ class StudyTimer {
         if (data.isRunning && data.startTime) {
             const elapsed = (Date.now() - data.startTime) / 1000;
             this.timeLeft = Math.max(0, data.duration - elapsed);
+            console.log('Calculated timeLeft:', this.timeLeft);
             // Start the timer immediately for participants
             this.startLocalTimer();
         } else {
@@ -380,6 +422,11 @@ class StudyTimer {
         this.setupBroadcastChannel();
         this.updateControlsVisibility();
         this.showToast('Room created! You are the host - you control the timer.');
+        
+        // Broadcast initial timer state
+        setTimeout(() => {
+            this.broadcastTimerState();
+        }, 100);
     }
     
     updateControlsVisibility() {
@@ -448,14 +495,29 @@ class StudyTimer {
         this.updateControlsVisibility();
         this.showToast('Joined study room! The host controls the timer.');
         
-        // Request current timer state from host
-        setTimeout(() => {
+        // Request current timer state from host multiple times to ensure sync
+        const requestState = () => {
             this.broadcastMessage({
                 type: 'request-state',
                 participantId: this.myId,
                 timestamp: Date.now()
             });
-        }, 1000); // Wait 1 second for connection to establish
+        };
+        
+        // Request immediately
+        requestState();
+        
+        // Request again after 500ms, 1 second, and 2 seconds
+        setTimeout(requestState, 500);
+        setTimeout(requestState, 1000);
+        setTimeout(requestState, 2000);
+        
+        // Also request periodically every 10 seconds as fallback
+        setInterval(() => {
+            if (!this.isHost && this.roomId) {
+                requestState();
+            }
+        }, 10000);
     }
     
     generateRoomId() {
@@ -548,10 +610,8 @@ class StudyTimer {
     sendMessage() {
         const message = this.chatInput.value.trim();
         if (!message || !this.roomId) return;
-        
         // Add my message to chat
         this.addChatMessage(message, 'own', this.userName);
-        
         // Broadcast message to others
         this.broadcastMessage({
             type: 'chat-message',
@@ -560,7 +620,14 @@ class StudyTimer {
             message: message,
             timestamp: Date.now()
         });
-        
+        // Also broadcast chat history if host
+        if (this.isHost) {
+            this.broadcastMessage({
+                type: 'chat-history',
+                history: Array.from(this.chatMessages.children).map(el => el.innerHTML),
+                timestamp: Date.now()
+            });
+        }
         // Clear input
         this.chatInput.value = '';
     }
@@ -725,6 +792,7 @@ class StudyTimer {
     
     startLocalTimer() {
         this.stopLocalTimer();
+        let broadcastCounter = 0;
         this.interval = setInterval(() => {
             if (this.isRunning) {
                 const elapsed = (Date.now() - this.startTime) / 1000;
@@ -733,9 +801,11 @@ class StudyTimer {
                 this.updateDisplay();
                 this.updateProgress();
                 
-                // Broadcast timer state every 5 seconds if we're the host
-                if (this.isHost && this.roomId && Date.now() % 5000 < 100) {
+                // Broadcast timer state every 2 seconds if we're the host
+                broadcastCounter++;
+                if (this.isHost && this.roomId && broadcastCounter >= 20) { // 20 * 100ms = 2 seconds
                     this.broadcastTimerState();
+                    broadcastCounter = 0;
                 }
                 
                 if (this.timeLeft <= 0) {
@@ -862,6 +932,7 @@ class StudyTimer {
     
     updateParticipantCount() {
         const count = this.participants.size;
+        console.log('Updating participant count:', count, 'participants:', Array.from(this.participants.keys()));
         if (count === 1) {
             this.participantCount.textContent = '1 student';
         } else {
