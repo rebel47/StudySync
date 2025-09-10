@@ -268,9 +268,19 @@ class StudyTimer {
     handleBroadcastMessage(data) {
         // Ignore messages from myself
         if (data.participantId === this.myId) return;
-        
-        console.log('Received message:', data.type, 'from:', data.participantId);
+        // Always log received messages
+        console.log('Received message:', data.type, 'from:', data.participantId, data);
         switch (data.type) {
+            case 'timer-state':
+                // Always sync timer for non-hosts
+                if (!this.isHost) {
+                    this.syncWithHost(data);
+                }
+                // If I'm host and receive timer-state from a participant, rebroadcast my state
+                if (this.isHost) {
+                    this.broadcastTimerState();
+                }
+                break;
             case 'join':
                 this.participants.set(data.participantId, {
                     id: data.participantId,
@@ -279,20 +289,23 @@ class StudyTimer {
                     isHost: data.isHost || false
                 });
                 this.updateParticipantCount();
-                // If I'm the host, send current state to new participant
+                // Host broadcasts full state after join
                 if (this.isHost) {
                     this.broadcastTimerState();
-                    // Also broadcast full participant list
                     this.broadcastMessage({
                         type: 'participant-list',
                         participants: Array.from(this.participants.values()),
                         timestamp: Date.now()
                     });
+                    this.broadcastMessage({
+                        type: 'chat-history',
+                        history: Array.from(this.chatMessages.children).map(el => el.innerHTML),
+                        timestamp: Date.now()
+                    });
                 }
                 break;
             case 'participant-list':
-                // Sync participant list from host
-                if (!this.isHost && Array.isArray(data.participants)) {
+                if (Array.isArray(data.participants)) {
                     this.participants.clear();
                     for (const p of data.participants) {
                         this.participants.set(p.id, p);
@@ -300,58 +313,22 @@ class StudyTimer {
                     this.updateParticipantCount();
                 }
                 break;
-            case 'heartbeat':
-                if (this.participants.has(data.participantId)) {
-                    this.participants.get(data.participantId).lastSeen = data.timestamp;
-                }
-                break;
-                
-            case 'timer-state':
-                console.log('Received timer state from:', data.participantId, 'mode:', data.mode, 'timeLeft:', data.timeLeft);
-                // Accept timer state from any participant when not host
-                if (!this.isHost) {
-                    this.syncWithHost(data);
-                }
-                break;
-                
-            case 'timer-action':
-                // Only accept timer actions from host
-                const actionSender = this.participants.get(data.participantId);
-                if (actionSender && actionSender.isHost && !this.isHost) {
-                    this.handleRemoteAction(data.action, data.data);
-                }
-                break;
-                
-            case 'host-change':
-                if (data.newHostId !== this.myId) {
-                    // Update the new host in participants
-                    for (const participant of this.participants.values()) {
-                        participant.isHost = (participant.id === data.newHostId);
-                    }
-                }
-                break;
-                
-            case 'request-state':
-                // Only host responds to state requests
-                if (this.isHost) {
-                    // Respond immediately
-                    this.broadcastTimerState();
-                }
-                break;
-                
             case 'chat-message':
-                console.log('Received chat message from:', data.userName, 'message:', data.message);
-                if (this.chatMessages) {
-                    this.addChatMessage(data.message, 'other', data.userName);
-                    if (!this.isChatOpen) {
-                        this.unreadMessages++;
-                        this.updateChatNotification();
-                    }
+                this.addChatMessage(data.message, 'other', data.userName);
+                if (!this.isChatOpen) {
+                    this.unreadMessages++;
+                    this.updateChatNotification();
+                }
+                // Host rebroadcasts chat history
+                if (this.isHost) {
+                    this.broadcastMessage({
+                        type: 'chat-history',
+                        history: Array.from(this.chatMessages.children).map(el => el.innerHTML),
+                        timestamp: Date.now()
+                    });
                 }
                 break;
-                
             case 'chat-history':
-                // Sync chat history from host
                 if (!this.isHost && Array.isArray(data.history)) {
                     this.chatMessages.innerHTML = '';
                     for (const html of data.history) {
@@ -365,30 +342,26 @@ class StudyTimer {
     }
     
     syncWithHost(data) {
-        console.log('Syncing with host data:', data);
-        this.currentMode = data.mode;
-        this.duration = data.duration;
-        this.timeLeft = data.timeLeft;
-        this.isRunning = data.isRunning;
-        this.isPaused = data.isPaused;
-
-        // Clear any existing timer first
-        this.stopLocalTimer();
-
-        if (data.isRunning && data.startTime) {
-            const elapsed = (Date.now() - data.startTime) / 1000;
-            this.timeLeft = Math.max(0, data.duration - elapsed);
-            console.log('Calculated timeLeft:', this.timeLeft);
-            // Start the timer immediately for participants
-            this.startLocalTimer();
-        } else {
+        // Only update if the incoming timer is different from mine
+        if (this.timeLeft !== data.timeLeft || this.currentMode !== data.mode || this.isRunning !== data.isRunning) {
+            this.currentMode = data.mode;
+            this.duration = data.duration;
+            this.timeLeft = data.timeLeft;
+            this.isRunning = data.isRunning;
+            this.isPaused = data.isPaused;
             this.stopLocalTimer();
+            if (data.isRunning && data.startTime) {
+                const elapsed = (Date.now() - data.startTime) / 1000;
+                this.timeLeft = Math.max(0, data.duration - elapsed);
+                this.startLocalTimer();
+            } else {
+                this.stopLocalTimer();
+            }
+            this.updateDisplay();
+            this.updateModeDisplay();
+            this.updateButtons();
+            this.updateProgress();
         }
-
-        this.updateDisplay();
-        this.updateModeDisplay();
-        this.updateButtons();
-        this.updateProgress();
     }
     
     handleRemoteAction(action, data) {
@@ -494,24 +467,21 @@ class StudyTimer {
         this.isHost = false;
         this.updateControlsVisibility();
         this.showToast('Joined study room! The host controls the timer.');
-        
         // Request current timer state from host multiple times to ensure sync
         const requestState = () => {
+            this.broadcastTimerState(); // Also broadcast my state for redundancy
             this.broadcastMessage({
                 type: 'request-state',
                 participantId: this.myId,
                 timestamp: Date.now()
             });
         };
-        
         // Request immediately
         requestState();
-        
         // Request again after 500ms, 1 second, and 2 seconds
         setTimeout(requestState, 500);
         setTimeout(requestState, 1000);
         setTimeout(requestState, 2000);
-        
         // Also request periodically every 10 seconds as fallback
         setInterval(() => {
             if (!this.isHost && this.roomId) {
@@ -874,8 +844,8 @@ class StudyTimer {
     }
     
     broadcastTimerState() {
-        if (!this.roomId || !this.isHost) return;
-        
+        if (!this.roomId) return;
+        // Host always broadcasts, but participants also broadcast their state on join for redundancy
         this.broadcastMessage({
             type: 'timer-state',
             participantId: this.myId,
