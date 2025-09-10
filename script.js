@@ -278,9 +278,10 @@ class StudyTimer {
                 break;
                 
             case 'timer-state':
-                // Only accept timer state from host
+                // Accept timer state from any participant initially, then verify host status
                 const sender = this.participants.get(data.participantId);
-                if (sender && sender.isHost && !this.isHost) {
+                if (!this.isHost && (sender && sender.isHost || !sender)) {
+                    // If we don't know the sender yet, assume they might be host
                     this.syncWithHost(data);
                 }
                 break;
@@ -430,6 +431,15 @@ class StudyTimer {
             
             this.setupBroadcastChannel();
             this.joinExistingRoom();
+            
+            // Request current state immediately
+            setTimeout(() => {
+                this.broadcastMessage({
+                    type: 'request-state',
+                    participantId: this.myId,
+                    timestamp: Date.now()
+                });
+            }, 100);
         }
     }
     
@@ -722,6 +732,11 @@ class StudyTimer {
                 
                 this.updateDisplay();
                 this.updateProgress();
+                
+                // Broadcast timer state every 5 seconds if we're the host
+                if (this.isHost && this.roomId && Date.now() % 5000 < 100) {
+                    this.broadcastTimerState();
+                }
                 
                 if (this.timeLeft <= 0) {
                     this.onTimerComplete();
