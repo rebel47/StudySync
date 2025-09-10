@@ -36,8 +36,14 @@ class StudyTimer {
         this.progressCircle = document.getElementById('progress-circle');
         this.modeButtons = document.querySelectorAll('.mode-btn');
         this.fullscreenBtn = document.getElementById('fullscreen-btn');
+        this.fullscreenExitBtn = document.getElementById('fullscreen-exit-btn');
         this.container = document.querySelector('.container');
         this.card = document.querySelector('.card');
+        
+        // Initially hide the exit button
+        if (this.fullscreenExitBtn) {
+            this.fullscreenExitBtn.style.display = 'none';
+        }
         
         // Chat elements
         this.chatPanel = document.getElementById('chat-panel');
@@ -45,9 +51,18 @@ class StudyTimer {
         this.chatInput = document.getElementById('chat-input');
         this.sendChatBtn = document.getElementById('send-chat-btn');
         this.toggleChatBtn = document.getElementById('toggle-chat-btn');
+        this.closeChatBtn = document.getElementById('close-chat-btn');
         this.userName = 'Student ' + Math.floor(Math.random() * 1000);
         this.isChatOpen = false;
         this.unreadMessages = 0;
+        
+        // Custom timer modal elements
+        this.customModal = document.getElementById('custom-modal');
+        this.customMinutesInput = document.getElementById('custom-minutes');
+        this.closeModalBtn = document.getElementById('close-modal-btn');
+        this.cancelCustomBtn = document.getElementById('cancel-custom-btn');
+        this.setCustomBtn = document.getElementById('set-custom-btn');
+        this.customModeBtn = document.getElementById('custom-mode-btn');
     }
     
     attachEventListeners() {
@@ -57,6 +72,11 @@ class StudyTimer {
         this.copyBtn.addEventListener('click', () => this.copyRoomUrl());
         this.joinRoomBtn.addEventListener('click', () => this.joinRoom());
         this.fullscreenBtn.addEventListener('click', () => this.toggleFullscreen());
+        
+        // Fullscreen exit button event listener
+        if (this.fullscreenExitBtn) {
+            this.fullscreenExitBtn.addEventListener('click', () => this.exitFullscreen());
+        }
         
         // Chat event listeners
         if (this.toggleChatBtn) {
@@ -71,6 +91,23 @@ class StudyTimer {
                     this.sendMessage();
                 }
             });
+        }
+        if (this.closeChatBtn) {
+            this.closeChatBtn.addEventListener('click', () => this.closeChat());
+        }
+        
+        // Custom timer modal event listeners
+        if (this.customModeBtn) {
+            this.customModeBtn.addEventListener('click', () => this.openCustomModal());
+        }
+        if (this.closeModalBtn) {
+            this.closeModalBtn.addEventListener('click', () => this.closeCustomModal());
+        }
+        if (this.cancelCustomBtn) {
+            this.cancelCustomBtn.addEventListener('click', () => this.closeCustomModal());
+        }
+        if (this.setCustomBtn) {
+            this.setCustomBtn.addEventListener('click', () => this.setCustomTimer());
         }
         
         // ESC key to exit fullscreen
@@ -265,6 +302,15 @@ class StudyTimer {
                 }
                 break;
                 
+            case 'request-state':
+                // Only host responds to state requests
+                if (this.isHost) {
+                    setTimeout(() => {
+                        this.broadcastTimerState();
+                    }, 200);
+                }
+                break;
+                
             case 'chat-message':
                 if (this.chatMessages) {
                     this.addChatMessage(data.message, 'other', data.userName);
@@ -283,18 +329,23 @@ class StudyTimer {
         this.timeLeft = data.timeLeft;
         this.isRunning = data.isRunning;
         this.isPaused = data.isPaused;
-        
+
+        // Clear any existing timer first
+        this.stopLocalTimer();
+
         if (data.isRunning && data.startTime) {
             const elapsed = (Date.now() - data.startTime) / 1000;
             this.timeLeft = Math.max(0, data.duration - elapsed);
+            // Start the timer immediately for participants
             this.startLocalTimer();
         } else {
             this.stopLocalTimer();
         }
-        
+
         this.updateDisplay();
         this.updateModeDisplay();
         this.updateButtons();
+        this.updateProgress();
     }
     
     handleRemoteAction(action, data) {
@@ -351,6 +402,16 @@ class StudyTimer {
         if (this.roomId) {
             const statusText = this.isHost ? '👑 Host' : '👥 Participant';
             document.querySelector('.title').textContent = `StudySync - ${statusText}`;
+            
+            // Enable chat button when in a room
+            if (this.toggleChatBtn) {
+                this.toggleChatBtn.disabled = false;
+            }
+        } else {
+            // Disable chat button when not in a room
+            if (this.toggleChatBtn) {
+                this.toggleChatBtn.disabled = true;
+            }
         }
     }
     
@@ -376,6 +437,15 @@ class StudyTimer {
         this.isHost = false;
         this.updateControlsVisibility();
         this.showToast('Joined study room! The host controls the timer.');
+        
+        // Request current timer state from host
+        setTimeout(() => {
+            this.broadcastMessage({
+                type: 'request-state',
+                participantId: this.myId,
+                timestamp: Date.now()
+            });
+        }, 1000); // Wait 1 second for connection to establish
     }
     
     generateRoomId() {
@@ -407,13 +477,9 @@ class StudyTimer {
         // Hide everything except timer
         document.body.classList.add('fullscreen-mode');
         
-        // Update fullscreen button
-        this.fullscreenBtn.innerHTML = `
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                <path d="M5.5 0a.5.5 0 0 1 .5.5v4A1.5 1.5 0 0 1 4.5 6h-4a.5.5 0 0 1 0-1h4a.5.5 0 0 0 .5-.5v-4a.5.5 0 0 1 .5-.5zm5 0a.5.5 0 0 1 .5.5v4a.5.5 0 0 0 .5.5h4a.5.5 0 0 1 0 1h-4A1.5 1.5 0 0 1 10 4.5v-4a.5.5 0 0 1 .5-.5zM0 10.5a.5.5 0 0 1 .5-.5h4A1.5 1.5 0 0 1 6 11.5v4a.5.5 0 0 1-1 0v-4a.5.5 0 0 0-.5-.5h-4a.5.5 0 0 1-.5-.5zm10 1a1.5 1.5 0 0 1 1.5-1.5h4a.5.5 0 0 1 0 1h-4a.5.5 0 0 0-.5.5v4a.5.5 0 0 1-1 0v-4z"/>
-            </svg>
-            Exit Focus
-        `;
+        // Hide the fullscreen button and show exit button
+        if (this.fullscreenBtn) this.fullscreenBtn.style.display = 'none';
+        if (this.fullscreenExitBtn) this.fullscreenExitBtn.style.display = 'flex';
         
         this.showToast('Focus Mode: Press ESC or click "Exit Focus" to return');
     }
@@ -438,6 +504,35 @@ class StudyTimer {
     closeChat() {
         this.isChatOpen = false;
         this.chatPanel.classList.remove('open');
+    }
+    
+    openCustomModal() {
+        if (this.customModal) {
+            this.customModal.style.display = 'flex';
+            if (this.customMinutesInput) {
+                this.customMinutesInput.focus();
+            }
+        }
+    }
+    
+    closeCustomModal() {
+        if (this.customModal) {
+            this.customModal.style.display = 'none';
+        }
+    }
+    
+    setCustomTimer() {
+        if (!this.customMinutesInput) return;
+        
+        const minutes = parseInt(this.customMinutesInput.value);
+        if (isNaN(minutes) || minutes < 1 || minutes > 180) {
+            this.showToast('Please enter a valid time between 1-180 minutes');
+            return;
+        }
+        
+        this.changeMode('custom', minutes * 60);
+        this.closeCustomModal();
+        this.showToast(`Custom timer set to ${minutes} minutes`);
     }
     
     sendMessage() {
@@ -512,13 +607,9 @@ class StudyTimer {
         // Show everything back
         document.body.classList.remove('fullscreen-mode');
         
-        // Update fullscreen button
-        this.fullscreenBtn.innerHTML = `
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                <path d="M1.5 1a.5.5 0 0 0-.5.5v4a.5.5 0 0 1-1 0v-4A1.5 1.5 0 0 1 1.5 0h4a.5.5 0 0 1 0 1h-4zM10 .5a.5.5 0 0 1 .5-.5h4A1.5 1.5 0 0 1 16 1.5v4a.5.5 0 0 1-1 0v-4a.5.5 0 0 0-.5-.5h-4a.5.5 0 0 1-.5-.5zM.5 10a.5.5 0 0 1 .5.5v4a.5.5 0 0 0 .5.5h4a.5.5 0 0 1 0 1h-4A1.5 1.5 0 0 1 0 14.5v-4a.5.5 0 0 1 .5-.5zm15 0a.5.5 0 0 1 .5.5v4a1.5 1.5 0 0 1-1.5 1.5h-4a.5.5 0 0 1 0-1h4a.5.5 0 0 0 .5-.5v-4a.5.5 0 0 1 .5-.5z"/>
-            </svg>
-            Focus Mode
-        `;
+        // Show the fullscreen button and hide exit button
+        if (this.fullscreenBtn) this.fullscreenBtn.style.display = 'flex';
+        if (this.fullscreenExitBtn) this.fullscreenExitBtn.style.display = 'none';
     }
     
     toggleTimer() {

@@ -341,14 +341,6 @@ body.fullscreen-mode .btn {
 }
 
 /* Fullscreen exit button */
-body.fullscreen-mode::before {
-    content: '';
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    z-index: 1000;
-}
-
 body.fullscreen-mode .fullscreen-exit-btn {
     position: fixed;
     top: 20px;
@@ -365,10 +357,12 @@ body.fullscreen-mode .fullscreen-exit-btn {
     gap: 8px;
     font-size: 14px;
     backdrop-filter: blur(10px);
+    transition: all 0.2s ease;
 }
 
 body.fullscreen-mode .fullscreen-exit-btn:hover {
     background: rgba(255,255,255,0.2);
+    transform: translateY(-1px);
 }
 
 /* Show exit instructions */
@@ -394,7 +388,8 @@ body.fullscreen-mode .timer-section::after {
     right: -400px;
     top: 0;
     width: 350px;
-    height: 100vh;
+    height: 70vh; /* Changed from 100vh to 70vh to match timer section */
+    max-height: 600px; /* Add max height for better proportion */
     background: linear-gradient(180deg, rgba(15,23,36,0.95), rgba(11,18,32,0.95));
     backdrop-filter: blur(20px);
     border-left: 1px solid rgba(255,255,255,0.1);
@@ -403,6 +398,8 @@ body.fullscreen-mode .timer-section::after {
     transition: right 0.3s ease;
     z-index: 1000;
     box-shadow: -4px 0 20px rgba(0,0,0,0.3);
+    margin-top: 10vh; /* Add top margin to center vertically */
+    border-radius: 12px 0 0 12px;
 }
 
 .chat-panel.open {
