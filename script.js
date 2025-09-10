@@ -35,6 +35,11 @@ class StudyTimer {
         this.toast = document.getElementById('toast');
         this.progressCircle = document.getElementById('progress-circle');
         this.modeButtons = document.querySelectorAll('.mode-btn');
+        this.fullscreenBtn = document.getElementById('fullscreen-btn');
+        this.container = document.querySelector('.container');
+        this.card = document.querySelector('.card');
+        
+        // Chat elements
         this.chatPanel = document.getElementById('chat-panel');
         this.chatMessages = document.getElementById('chat-messages');
         this.chatInput = document.getElementById('chat-input');
@@ -409,6 +414,8 @@ class StudyTimer {
             </svg>
             Exit Focus
         `;
+        
+        this.showToast('Focus Mode: Press ESC or click "Exit Focus" to return');
     }
     
     // Chat functionality
@@ -781,6 +788,7 @@ window.addEventListener('beforeunload', () => {
         window.studyTimer.broadcastMessage({
             type: 'leave',
             participantId: window.studyTimer.myId,
+            userName: window.studyTimer.userName,
             timestamp: Date.now()
         });
     }
