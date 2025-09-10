@@ -35,9 +35,14 @@ class StudyTimer {
         this.toast = document.getElementById('toast');
         this.progressCircle = document.getElementById('progress-circle');
         this.modeButtons = document.querySelectorAll('.mode-btn');
-        this.fullscreenBtn = document.getElementById('fullscreen-btn');
-        this.container = document.querySelector('.container');
-        this.card = document.querySelector('.card');
+        this.chatPanel = document.getElementById('chat-panel');
+        this.chatMessages = document.getElementById('chat-messages');
+        this.chatInput = document.getElementById('chat-input');
+        this.sendChatBtn = document.getElementById('send-chat-btn');
+        this.toggleChatBtn = document.getElementById('toggle-chat-btn');
+        this.userName = 'Student ' + Math.floor(Math.random() * 1000);
+        this.isChatOpen = false;
+        this.unreadMessages = 0;
     }
     
     attachEventListeners() {
@@ -47,6 +52,21 @@ class StudyTimer {
         this.copyBtn.addEventListener('click', () => this.copyRoomUrl());
         this.joinRoomBtn.addEventListener('click', () => this.joinRoom());
         this.fullscreenBtn.addEventListener('click', () => this.toggleFullscreen());
+        
+        // Chat event listeners
+        if (this.toggleChatBtn) {
+            this.toggleChatBtn.addEventListener('click', () => this.toggleChat());
+        }
+        if (this.sendChatBtn) {
+            this.sendChatBtn.addEventListener('click', () => this.sendMessage());
+        }
+        if (this.chatInput) {
+            this.chatInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    this.sendMessage();
+                }
+            });
+        }
         
         // ESC key to exit fullscreen
         document.addEventListener('keydown', (e) => {
@@ -239,6 +259,16 @@ class StudyTimer {
                     }
                 }
                 break;
+                
+            case 'chat-message':
+                if (this.chatMessages) {
+                    this.addChatMessage(data.message, 'other', data.userName);
+                    if (!this.isChatOpen) {
+                        this.unreadMessages++;
+                        this.updateChatNotification();
+                    }
+                }
+                break;
         }
     }
     
@@ -379,8 +409,94 @@ class StudyTimer {
             </svg>
             Exit Focus
         `;
+    }
+    
+    // Chat functionality
+    toggleChat() {
+        if (this.isChatOpen) {
+            this.closeChat();
+        } else {
+            this.openChat();
+        }
+    }
+    
+    openChat() {
+        this.isChatOpen = true;
+        this.chatPanel.classList.add('open');
+        this.unreadMessages = 0;
+        this.updateChatNotification();
+        this.chatInput.focus();
+    }
+    
+    closeChat() {
+        this.isChatOpen = false;
+        this.chatPanel.classList.remove('open');
+    }
+    
+    sendMessage() {
+        const message = this.chatInput.value.trim();
+        if (!message || !this.roomId) return;
         
-        this.showToast('Focus Mode: Press ESC or click "Exit Focus" to return');
+        // Add my message to chat
+        this.addChatMessage(message, 'own', this.userName);
+        
+        // Broadcast message to others
+        this.broadcastMessage({
+            type: 'chat-message',
+            participantId: this.myId,
+            userName: this.userName,
+            message: message,
+            timestamp: Date.now()
+        });
+        
+        // Clear input
+        this.chatInput.value = '';
+    }
+    
+    addChatMessage(message, type, sender = null) {
+        const messageEl = document.createElement('div');
+        messageEl.className = `chat-message ${type}`;
+        
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        
+        if (type === 'system') {
+            messageEl.innerHTML = `
+                <span class="message-text">${this.escapeHtml(message)}</span>
+            `;
+        } else {
+            messageEl.innerHTML = `
+                ${sender ? `<span class="message-sender">${this.escapeHtml(sender)}</span>` : ''}
+                <span class="message-text">${this.escapeHtml(message)}</span>
+                <span class="message-time">${timeStr}</span>
+            `;
+        }
+        
+        this.chatMessages.appendChild(messageEl);
+        this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
+    }
+    
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    updateChatNotification() {
+        const existingNotification = this.toggleChatBtn.querySelector('.chat-notification');
+        
+        if (this.unreadMessages > 0 && !this.isChatOpen) {
+            if (!existingNotification) {
+                const notification = document.createElement('span');
+                notification.className = 'chat-notification';
+                notification.textContent = this.unreadMessages;
+                this.toggleChatBtn.appendChild(notification);
+            } else {
+                existingNotification.textContent = this.unreadMessages;
+            }
+        } else if (existingNotification) {
+            existingNotification.remove();
+        }
     }
     
     exitFullscreen() {
