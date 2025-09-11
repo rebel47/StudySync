@@ -1,3 +1,14 @@
+// Firebase configuration - Replace with your actual config
+const firebaseConfig = {
+    apiKey: "AIzaSyCHOhq4c1FxOU8MqgZmg58VVOPBe-0NsGE",
+    authDomain: "studysync-7c87f.firebaseapp.com",
+    databaseURL: "https://studysync-7c87f-default-rtdb.europe-west1.firebasedatabase.app/",
+    projectId: "studysync-7c87f",
+    storageBucket: "studysync-7c87f.firebasestorage.app",
+    messagingSenderId: "176545965227",
+    appId: "1:176545965227:web:465da8d394e1aa00eb43ee"
+};
+
 class StudyTimer {
     constructor() {
         this.currentMode = 'focus';
@@ -9,17 +20,50 @@ class StudyTimer {
         this.interval = null;
         this.roomId = null;
         this.isHost = false;
-        this.channel = null;
-        this.participants = new Map(); // Store participant data with timestamps
+        this.participants = new Map();
         this.myId = 'user-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5);
-        this.heartbeatInterval = null;
-        this.cleanupInterval = null;
         this.isFullscreen = false;
+        this.userName = 'Student ' + Math.floor(Math.random() * 1000);
+        this.isChatOpen = false;
+        this.unreadMessages = 0;
+        this.chatHistory = [];
+        
+        // Firebase specific
+        this.db = null;
+        this.roomRef = null;
+        this.participantsRef = null;
+        this.timerRef = null;
+        this.chatRef = null;
+        this.firebaseInitialized = false;
+        this.heartbeatInterval = null;
         
         this.initializeElements();
         this.attachEventListeners();
+        this.initializeFirebase();
         this.checkForRoom();
-        this.setupBroadcastChannel();
+    }
+    
+    async initializeFirebase() {
+        try {
+            // Check if Firebase config is set
+            if (firebaseConfig.apiKey === "your-api-key-here") {
+                console.warn('Firebase not configured. Please set your Firebase config.');
+                this.showToast('Firebase not configured. Please check console for setup instructions.');
+                return;
+            }
+            
+            // Initialize Firebase
+            firebase.initializeApp(firebaseConfig);
+            this.db = firebase.database();
+            this.firebaseInitialized = true;
+            
+            console.log('Firebase initialized successfully');
+            this.showToast('Connected to Firebase! 🔥');
+            
+        } catch (error) {
+            console.error('Firebase initialization failed:', error);
+            this.showToast('Firebase connection failed. Check console for details.');
+        }
     }
     
     initializeElements() {
@@ -37,13 +81,6 @@ class StudyTimer {
         this.modeButtons = document.querySelectorAll('.mode-btn');
         this.fullscreenBtn = document.getElementById('fullscreen-btn');
         this.fullscreenExitBtn = document.getElementById('fullscreen-exit-btn');
-        this.container = document.querySelector('.container');
-        this.card = document.querySelector('.card');
-        
-        // Initially hide the exit button
-        if (this.fullscreenExitBtn) {
-            this.fullscreenExitBtn.style.display = 'none';
-        }
         
         // Chat elements
         this.chatPanel = document.getElementById('chat-panel');
@@ -52,9 +89,6 @@ class StudyTimer {
         this.sendChatBtn = document.getElementById('send-chat-btn');
         this.toggleChatBtn = document.getElementById('toggle-chat-btn');
         this.closeChatBtn = document.getElementById('close-chat-btn');
-        this.userName = 'Student ' + Math.floor(Math.random() * 1000);
-        this.isChatOpen = false;
-        this.unreadMessages = 0;
         
         // Custom timer modal elements
         this.customModal = document.getElementById('custom-modal');
@@ -63,6 +97,11 @@ class StudyTimer {
         this.cancelCustomBtn = document.getElementById('cancel-custom-btn');
         this.setCustomBtn = document.getElementById('set-custom-btn');
         this.customModeBtn = document.getElementById('custom-mode-btn');
+        
+        // Initially hide the exit button
+        if (this.fullscreenExitBtn) {
+            this.fullscreenExitBtn.style.display = 'none';
+        }
     }
     
     attachEventListeners() {
@@ -73,7 +112,6 @@ class StudyTimer {
         this.joinRoomBtn.addEventListener('click', () => this.joinRoom());
         this.fullscreenBtn.addEventListener('click', () => this.toggleFullscreen());
         
-        // Fullscreen exit button event listener
         if (this.fullscreenExitBtn) {
             this.fullscreenExitBtn.addEventListener('click', () => this.exitFullscreen());
         }
@@ -127,18 +165,15 @@ class StudyTimer {
     }
     
     checkForRoom() {
-        // Handle both http:// and file:// URLs
         let roomId = null;
         
         if (window.location.protocol === 'file:') {
-            // For file:// URLs, parse the search string manually
             const search = window.location.search;
             if (search) {
                 const params = new URLSearchParams(search);
                 roomId = params.get('room');
             }
         } else {
-            // For http:// URLs, use standard URLSearchParams
             const urlParams = new URLSearchParams(window.location.search);
             roomId = urlParams.get('room');
         }
@@ -147,83 +182,186 @@ class StudyTimer {
             this.roomId = roomId;
             this.roomUrl.value = window.location.href;
             this.copyBtn.disabled = false;
-            this.setupBroadcastChannel();
             this.joinExistingRoom();
         }
     }
     
-    setupBroadcastChannel() {
-        if (!this.roomId) return;
+    async createRoom() {
+        if (!this.firebaseInitialized) {
+            this.showToast('Please wait for Firebase to initialize...');
+            return;
+        }
+        
+        this.roomId = this.generateRoomId();
+        this.isHost = true;
+        
+        const url = new URL(window.location);
+        url.searchParams.set('room', this.roomId);
+        window.history.pushState({}, '', url);
+        
+        this.roomUrl.value = url.toString();
+        this.copyBtn.disabled = false;
+        
         try {
-            this.channel = new BroadcastChannel(`study-timer-${this.roomId}`);
-            this.channel.addEventListener('message', (event) => {
-                this.handleBroadcastMessage(event.data);
+            // Initialize room in Firebase
+            this.roomRef = this.db.ref(`rooms/${this.roomId}`);
+            this.participantsRef = this.roomRef.child('participants');
+            this.timerRef = this.roomRef.child('timer');
+            this.chatRef = this.roomRef.child('chat');
+            
+            // Set initial room data
+            await this.roomRef.set({
+                created: firebase.database.ServerValue.TIMESTAMP,
+                host: this.myId,
+                timer: {
+                    mode: this.currentMode,
+                    duration: this.duration,
+                    timeLeft: this.timeLeft,
+                    isRunning: false,
+                    isPaused: false,
+                    startTime: null,
+                    lastUpdate: firebase.database.ServerValue.TIMESTAMP
+                },
+                chat: {
+                    messages: []
+                }
             });
             
-            // Add myself to participants
-            this.participants.set(this.myId, {
-                id: this.myId,
-                joinTime: Date.now(),
-                lastSeen: Date.now(),
-                isHost: this.isHost
+            // Add myself as participant
+            await this.participantsRef.child(this.myId).set({
+                name: this.userName,
+                isHost: true,
+                joinedAt: firebase.database.ServerValue.TIMESTAMP,
+                lastSeen: firebase.database.ServerValue.TIMESTAMP
             });
             
-            // Announce presence
-            this.broadcastMessage({
-                type: 'join',
-                participantId: this.myId,
-                isHost: this.isHost,
-                timestamp: Date.now()
-            });
-            
-            // Start heartbeat to maintain presence
+            this.setupFirebaseListeners();
             this.startHeartbeat();
+            this.updateControlsVisibility();
             
-            // Start cleanup for stale participants
-            this.startParticipantCleanup();
+            this.showToast('Room created! Share the link to study together 🎯');
+            this.addChatMessage('Study room created! Welcome to your collaborative study session.', 'system');
             
-            this.updateParticipantCount();
         } catch (error) {
-            console.warn('BroadcastChannel not supported');
-            this.showToast('ERROR: BroadcastChannel not supported. Open with Live Server or http:// URL for collaboration.');
-            // Fallback for single user
-            this.updateParticipantCount();
+            console.error('Error creating room:', error);
+            this.showToast('Failed to create room. Please try again.');
         }
     }
     
-    startHeartbeat() {
-        // Send heartbeat every 2 seconds
-        this.heartbeatInterval = setInterval(() => {
-            if (this.channel && this.roomId) {
-                this.broadcastMessage({
-                    type: 'heartbeat',
-                    participantId: this.myId,
-                    timestamp: Date.now()
-                });
-            }
-        }, 2000);
+    async joinRoom() {
+        if (!this.firebaseInitialized) {
+            this.showToast('Please wait for Firebase to initialize...');
+            return;
+        }
+        
+        const roomCode = prompt('Enter room code (the letters/numbers after ?room= in the link):');
+        if (roomCode && roomCode.trim()) {
+            this.roomId = roomCode.trim().toLowerCase();
+            this.isHost = false;
+            
+            const url = new URL(window.location);
+            url.searchParams.set('room', this.roomId);
+            window.history.pushState({}, '', url);
+            
+            this.roomUrl.value = url.toString();
+            this.copyBtn.disabled = false;
+            
+            this.joinExistingRoom();
+        }
     }
     
-    startParticipantCleanup() {
-        // Clean up stale participants every 5 seconds
-        this.cleanupInterval = setInterval(() => {
-            const now = Date.now();
-            const timeout = 15000; // 15 seconds timeout (increased from 8)
+    async joinExistingRoom() {
+        if (!this.firebaseInitialized) {
+            // Wait for Firebase to initialize
+            setTimeout(() => this.joinExistingRoom(), 1000);
+            return;
+        }
+        
+        try {
+            this.roomRef = this.db.ref(`rooms/${this.roomId}`);
+            this.participantsRef = this.roomRef.child('participants');
+            this.timerRef = this.roomRef.child('timer');
+            this.chatRef = this.roomRef.child('chat');
             
-            let removedAny = false;
-            for (const [id, participant] of this.participants.entries()) {
-                if (id !== this.myId && (now - participant.lastSeen) > timeout) {
-                    this.participants.delete(id);
-                    removedAny = true;
-                }
+            // Check if room exists
+            const roomSnapshot = await this.roomRef.once('value');
+            if (!roomSnapshot.exists()) {
+                this.showToast('Room not found. Please check the room code.');
+                return;
             }
             
-            if (removedAny) {
-                this.updateParticipantCount();
+            // Add myself as participant
+            await this.participantsRef.child(this.myId).set({
+                name: this.userName,
+                isHost: false,
+                joinedAt: firebase.database.ServerValue.TIMESTAMP,
+                lastSeen: firebase.database.ServerValue.TIMESTAMP
+            });
+            
+            this.setupFirebaseListeners();
+            this.startHeartbeat();
+            this.updateControlsVisibility();
+            
+            this.showToast('Joined study room! 🔍');
+            
+        } catch (error) {
+            console.error('Error joining room:', error);
+            this.showToast('Failed to join room. Please try again.');
+        }
+    }
+    
+    setupFirebaseListeners() {
+        // Listen for participant changes
+        this.participantsRef.on('value', (snapshot) => {
+            this.participants.clear();
+            const participantsData = snapshot.val();
+            
+            if (participantsData) {
+                Object.keys(participantsData).forEach(participantId => {
+                    this.participants.set(participantId, participantsData[participantId]);
+                });
+            }
+            
+            this.updateParticipantCount();
+            
+            // Check if I should become host
+            if (!this.isHost && !this.hasActiveHost()) {
+                this.becomeHost();
+            }
+        });
+        
+        // Listen for timer changes
+        this.timerRef.on('value', (snapshot) => {
+            const timerData = snapshot.val();
+            if (timerData && !this.isHost) {
+                this.syncWithHost(timerData);
+            }
+        });
+        
+        // Listen for chat messages
+        this.chatRef.child('messages').on('child_added', (snapshot) => {
+            const messageData = snapshot.val();
+            if (messageData && messageData.senderId !== this.myId) {
+                this.addChatMessage(messageData.message, 'other', messageData.senderName);
                 
-                // If host left and I'm the oldest remaining participant, become host
-                if (!this.isHost && !this.hasActiveHost()) {
-                    this.becomeHost();
+                if (!this.isChatOpen) {
+                    this.unreadMessages++;
+                    this.updateChatNotification();
+                }
+            }
+        });
+    }
+    
+    startHeartbeat() {
+        // Update heartbeat every 5 seconds
+        this.heartbeatInterval = setInterval(async () => {
+            if (this.participantsRef) {
+                try {
+                    await this.participantsRef.child(this.myId).update({
+                        lastSeen: firebase.database.ServerValue.TIMESTAMP
+                    });
+                } catch (error) {
+                    console.warn('Heartbeat failed:', error);
                 }
             }
         }, 5000);
@@ -238,256 +376,71 @@ class StudyTimer {
         return false;
     }
     
-    becomeHost() {
-        this.isHost = true;
-        this.participants.get(this.myId).isHost = true;
-        this.updateControlsVisibility();
-        this.showToast('You are now the room host!');
-        
-        // Broadcast new host status
-        this.broadcastMessage({
-            type: 'host-change',
-            newHostId: this.myId,
-            timestamp: Date.now()
-        });
-    }
-    
-    broadcastMessage(data) {
-        if (this.channel) {
-            try {
-                console.log('Broadcasting message:', data.type, 'to room:', this.roomId);
-                this.channel.postMessage(data);
-            } catch (error) {
-                console.warn('Failed to broadcast message:', error);
-            }
-        } else {
-            console.warn('No broadcast channel available');
-        }
-    }
-    
-    handleBroadcastMessage(data) {
-        // Ignore messages from myself
-        if (data.participantId === this.myId) return;
-        // Always log received messages
-        console.log('Received message:', data.type, 'from:', data.participantId, data);
-        switch (data.type) {
-            case 'timer-state':
-                // Always sync timer for non-hosts
-                if (!this.isHost) {
-                    this.syncWithHost(data);
-                }
-                // If I'm host and receive timer-state from a participant, rebroadcast my state
-                if (this.isHost) {
-                    this.broadcastTimerState();
-                }
-                break;
-            case 'join':
-                this.participants.set(data.participantId, {
-                    id: data.participantId,
-                    joinTime: data.timestamp,
-                    lastSeen: data.timestamp,
-                    isHost: data.isHost || false
-                });
-                this.updateParticipantCount();
-                // Host broadcasts full state after join
-                if (this.isHost) {
-                    this.broadcastTimerState();
-                    this.broadcastMessage({
-                        type: 'participant-list',
-                        participants: Array.from(this.participants.values()),
-                        timestamp: Date.now()
-                    });
-                    this.broadcastMessage({
-                        type: 'chat-history',
-                        history: Array.from(this.chatMessages.children).map(el => el.innerHTML),
-                        timestamp: Date.now()
-                    });
-                }
-                break;
-            case 'participant-list':
-                if (Array.isArray(data.participants)) {
-                    this.participants.clear();
-                    for (const p of data.participants) {
-                        this.participants.set(p.id, p);
-                    }
-                    this.updateParticipantCount();
-                }
-                break;
-            case 'chat-message':
-                this.addChatMessage(data.message, 'other', data.userName);
-                if (!this.isChatOpen) {
-                    this.unreadMessages++;
-                    this.updateChatNotification();
-                }
-                // Host rebroadcasts chat history
-                if (this.isHost) {
-                    this.broadcastMessage({
-                        type: 'chat-history',
-                        history: Array.from(this.chatMessages.children).map(el => el.innerHTML),
-                        timestamp: Date.now()
-                    });
-                }
-                break;
-            case 'chat-history':
-                if (!this.isHost && Array.isArray(data.history)) {
-                    this.chatMessages.innerHTML = '';
-                    for (const html of data.history) {
-                        const div = document.createElement('div');
-                        div.innerHTML = html;
-                        this.chatMessages.appendChild(div);
-                    }
-                }
-                break;
-        }
-    }
-    
-    syncWithHost(data) {
-        // Only update if the incoming timer is different from mine
-        if (this.timeLeft !== data.timeLeft || this.currentMode !== data.mode || this.isRunning !== data.isRunning) {
-            this.currentMode = data.mode;
-            this.duration = data.duration;
-            this.timeLeft = data.timeLeft;
-            this.isRunning = data.isRunning;
-            this.isPaused = data.isPaused;
-            this.stopLocalTimer();
-            if (data.isRunning && data.startTime) {
-                const elapsed = (Date.now() - data.startTime) / 1000;
-                this.timeLeft = Math.max(0, data.duration - elapsed);
-                this.startLocalTimer();
-            } else {
-                this.stopLocalTimer();
-            }
-            this.updateDisplay();
-            this.updateModeDisplay();
-            this.updateButtons();
-            this.updateProgress();
-        }
-    }
-    
-    handleRemoteAction(action, data) {
-        switch (action) {
-            case 'start':
-                this.startTimer(false);
-                break;
-            case 'pause':
-                this.pauseTimer(false);
-                break;
-            case 'reset':
-                this.resetTimer(false);
-                break;
-            case 'mode-change':
-                this.changeMode(data.mode, data.duration, false);
-                break;
-        }
-    }
-    
-    createRoom() {
-        this.roomId = this.generateRoomId();
+    async becomeHost() {
         this.isHost = true;
         
-        const url = new URL(window.location);
-        url.searchParams.set('room', this.roomId);
-        window.history.pushState({}, '', url);
-        
-        this.roomUrl.value = url.toString();
-        this.copyBtn.disabled = false;
-        
-        this.setupBroadcastChannel();
-        this.updateControlsVisibility();
-        this.showToast('Room created! You are the host - you control the timer.');
-        
-        // Broadcast initial timer state
-        setTimeout(() => {
-            this.broadcastTimerState();
-        }, 100);
-    }
-    
-    updateControlsVisibility() {
-        // Only host can control timer
-        const isDisabled = this.roomId && !this.isHost;
-        this.startBtn.disabled = isDisabled;
-        this.resetBtn.disabled = isDisabled;
-        
-        // Disable mode buttons for non-hosts
-        this.modeButtons.forEach(btn => {
-            if (isDisabled) {
-                btn.style.opacity = '0.5';
-                btn.style.pointerEvents = 'none';
-            } else {
-                btn.style.opacity = '1';
-                btn.style.pointerEvents = 'auto';
-            }
-        });
-        
-        // Update UI to show host status
-        if (this.roomId) {
-            const statusText = this.isHost ? '👑 Host' : '👥 Participant';
-            document.querySelector('.title').textContent = `StudySync - ${statusText}`;
-            
-            // Enable chat button when in a room
-            if (this.toggleChatBtn) {
-                this.toggleChatBtn.disabled = false;
-            }
-        } else {
-            // Disable chat button when not in a room
-            if (this.toggleChatBtn) {
-                this.toggleChatBtn.disabled = true;
-            }
-        }
-    }
-    
-    joinRoom() {
-        const roomCode = prompt('Enter room code (the letters/numbers after ?room= in the link):');
-        if (roomCode) {
-            this.roomId = roomCode;
-            this.isHost = false;
-            
-            const url = new URL(window.location);
-            url.searchParams.set('room', roomCode);
-            window.history.pushState({}, '', url);
-            
-            this.roomUrl.value = url.toString();
-            this.copyBtn.disabled = false;
-            
-            this.setupBroadcastChannel();
-            this.joinExistingRoom();
-            
-            // Request current state immediately
-            setTimeout(() => {
-                this.broadcastMessage({
-                    type: 'request-state',
-                    participantId: this.myId,
-                    timestamp: Date.now()
-                });
-            }, 100);
-        }
-    }
-    
-    joinExistingRoom() {
-        this.isHost = false;
-        this.updateControlsVisibility();
-        this.showToast('Joined study room! The host controls the timer.');
-        // Request current timer state from host multiple times to ensure sync
-        const requestState = () => {
-            this.broadcastTimerState(); // Also broadcast my state for redundancy
-            this.broadcastMessage({
-                type: 'request-state',
-                participantId: this.myId,
-                timestamp: Date.now()
+        try {
+            // Update my participant status
+            await this.participantsRef.child(this.myId).update({
+                isHost: true
             });
-        };
-        // Request immediately
-        requestState();
-        // Request again after 500ms, 1 second, and 2 seconds
-        setTimeout(requestState, 500);
-        setTimeout(requestState, 1000);
-        setTimeout(requestState, 2000);
-        // Also request periodically every 10 seconds as fallback
-        setInterval(() => {
-            if (!this.isHost && this.roomId) {
-                requestState();
-            }
-        }, 10000);
+            
+            // Update room host
+            await this.roomRef.update({
+                host: this.myId
+            });
+            
+            this.updateControlsVisibility();
+            this.showToast('You are now the room host! 👑');
+            
+        } catch (error) {
+            console.error('Error becoming host:', error);
+        }
+    }
+    
+    syncWithHost(timerData) {
+        console.log('Syncing with host timer:', timerData);
+        
+        this.currentMode = timerData.mode;
+        this.duration = timerData.duration;
+        this.timeLeft = timerData.timeLeft;
+        this.isRunning = timerData.isRunning;
+        this.isPaused = timerData.isPaused;
+        
+        this.stopLocalTimer();
+        
+        if (timerData.isRunning && timerData.startTime) {
+            const elapsed = (Date.now() - timerData.startTime) / 1000;
+            this.timeLeft = Math.max(0, timerData.duration - elapsed);
+            this.startTime = timerData.startTime;
+            this.startLocalTimer();
+        } else {
+            this.startTime = timerData.startTime;
+        }
+        
+        this.updateDisplay();
+        this.updateModeDisplay();
+        this.updateButtons();
+        this.updateProgress();
+        this.updateModeButtons();
+    }
+    
+    async updateTimerInFirebase() {
+        if (!this.isHost || !this.timerRef) return;
+        
+        try {
+            await this.timerRef.update({
+                mode: this.currentMode,
+                duration: this.duration,
+                timeLeft: this.timeLeft,
+                isRunning: this.isRunning,
+                isPaused: this.isPaused,
+                startTime: this.startTime,
+                lastUpdate: firebase.database.ServerValue.TIMESTAMP
+            });
+        } catch (error) {
+            console.warn('Failed to update timer in Firebase:', error);
+        }
     }
     
     generateRoomId() {
@@ -497,11 +450,10 @@ class StudyTimer {
     copyRoomUrl() {
         this.roomUrl.select();
         navigator.clipboard.writeText(this.roomUrl.value).then(() => {
-            this.showToast('Link copied to clipboard!');
+            this.showToast('Room link copied! 📋');
         }).catch(() => {
-            // Fallback for older browsers
             document.execCommand('copy');
-            this.showToast('Link copied to clipboard!');
+            this.showToast('Room link copied! 📋');
         });
     }
     
@@ -515,18 +467,22 @@ class StudyTimer {
     
     enterFullscreen() {
         this.isFullscreen = true;
-        
-        // Hide everything except timer
         document.body.classList.add('fullscreen-mode');
         
-        // Hide the fullscreen button and show exit button
         if (this.fullscreenBtn) this.fullscreenBtn.style.display = 'none';
         if (this.fullscreenExitBtn) this.fullscreenExitBtn.style.display = 'flex';
         
         this.showToast('Focus Mode: Press ESC or click "Exit Focus" to return');
     }
     
-    // Chat functionality
+    exitFullscreen() {
+        this.isFullscreen = false;
+        document.body.classList.remove('fullscreen-mode');
+        
+        if (this.fullscreenBtn) this.fullscreenBtn.style.display = 'flex';
+        if (this.fullscreenExitBtn) this.fullscreenExitBtn.style.display = 'none';
+    }
+    
     toggleChat() {
         if (this.isChatOpen) {
             this.closeChat();
@@ -577,29 +533,29 @@ class StudyTimer {
         this.showToast(`Custom timer set to ${minutes} minutes`);
     }
     
-    sendMessage() {
+    async sendMessage() {
         const message = this.chatInput.value.trim();
-        if (!message || !this.roomId) return;
-        // Add my message to chat
-        this.addChatMessage(message, 'own', this.userName);
-        // Broadcast message to others
-        this.broadcastMessage({
-            type: 'chat-message',
-            participantId: this.myId,
-            userName: this.userName,
-            message: message,
-            timestamp: Date.now()
-        });
-        // Also broadcast chat history if host
-        if (this.isHost) {
-            this.broadcastMessage({
-                type: 'chat-history',
-                history: Array.from(this.chatMessages.children).map(el => el.innerHTML),
-                timestamp: Date.now()
+        if (!message || !this.roomId || !this.chatRef) return;
+        
+        try {
+            // Add message to Firebase
+            await this.chatRef.child('messages').push({
+                message: message,
+                senderName: this.userName,
+                senderId: this.myId,
+                timestamp: firebase.database.ServerValue.TIMESTAMP
             });
+            
+            // Add to my local chat
+            this.addChatMessage(message, 'own', this.userName);
+            
+            // Clear input
+            this.chatInput.value = '';
+            
+        } catch (error) {
+            console.error('Failed to send message:', error);
+            this.showToast('Failed to send message');
         }
-        // Clear input
-        this.chatInput.value = '';
     }
     
     addChatMessage(message, type, sender = null) {
@@ -648,21 +604,38 @@ class StudyTimer {
         }
     }
     
-    exitFullscreen() {
-        this.isFullscreen = false;
+    updateControlsVisibility() {
+        const isDisabled = this.roomId && !this.isHost;
+        this.startBtn.disabled = isDisabled;
+        this.resetBtn.disabled = isDisabled;
         
-        // Show everything back
-        document.body.classList.remove('fullscreen-mode');
+        this.modeButtons.forEach(btn => {
+            if (isDisabled) {
+                btn.style.opacity = '0.5';
+                btn.style.pointerEvents = 'none';
+            } else {
+                btn.style.opacity = '1';
+                btn.style.pointerEvents = 'auto';
+            }
+        });
         
-        // Show the fullscreen button and hide exit button
-        if (this.fullscreenBtn) this.fullscreenBtn.style.display = 'flex';
-        if (this.fullscreenExitBtn) this.fullscreenExitBtn.style.display = 'none';
+        if (this.roomId) {
+            const statusText = this.isHost ? '👑 Host' : '👥 Participant';
+            document.querySelector('.title').textContent = `StudySync - ${statusText}`;
+            
+            if (this.toggleChatBtn) {
+                this.toggleChatBtn.disabled = false;
+            }
+        } else {
+            if (this.toggleChatBtn) {
+                this.toggleChatBtn.disabled = true;
+            }
+        }
     }
     
     toggleTimer() {
-        // Only host can control timer
         if (this.roomId && !this.isHost) {
-            this.showToast('Only the host can control the timer!');
+            this.showToast('Only the host can control the timer! 🔒');
             return;
         }
         
@@ -673,45 +646,28 @@ class StudyTimer {
         }
     }
     
-    startTimer(broadcast = true) {
+    startTimer() {
         this.isRunning = true;
         this.isPaused = false;
         this.startTime = Date.now() - (this.duration - this.timeLeft) * 1000;
         
         this.startLocalTimer();
         this.updateButtons();
-        
-        if (broadcast) {
-            this.broadcastTimerState();
-            this.broadcastMessage({
-                type: 'timer-action',
-                participantId: this.myId,
-                action: 'start'
-            });
-        }
+        this.updateTimerInFirebase();
     }
     
-    pauseTimer(broadcast = true) {
+    pauseTimer() {
         this.isRunning = false;
         this.isPaused = true;
         
         this.stopLocalTimer();
         this.updateButtons();
-        
-        if (broadcast) {
-            this.broadcastTimerState();
-            this.broadcastMessage({
-                type: 'timer-action',
-                participantId: this.myId,
-                action: 'pause'
-            });
-        }
+        this.updateTimerInFirebase();
     }
     
-    resetTimer(broadcast = true) {
-        // Only host can reset timer
-        if (this.roomId && !this.isHost && broadcast) {
-            this.showToast('Only the host can reset the timer!');
+    resetTimer() {
+        if (this.roomId && !this.isHost) {
+            this.showToast('Only the host can reset the timer! 🔒');
             return;
         }
         
@@ -724,45 +680,26 @@ class StudyTimer {
         this.updateDisplay();
         this.updateButtons();
         this.updateProgress();
-        
-        if (broadcast) {
-            this.broadcastTimerState();
-            this.broadcastMessage({
-                type: 'timer-action',
-                participantId: this.myId,
-                action: 'reset'
-            });
-        }
+        this.updateTimerInFirebase();
     }
     
-    changeMode(mode, duration, broadcast = true) {
-        // Only host can change mode
-        if (this.roomId && !this.isHost && broadcast) {
-            this.showToast('Only the host can change the timer mode!');
+    changeMode(mode, duration) {
+        if (this.roomId && !this.isHost) {
+            this.showToast('Only the host can change the timer mode! 🔒');
             return;
         }
         
         this.currentMode = mode;
         this.duration = duration;
-        this.resetTimer(false);
+        this.resetTimer();
         
         this.updateModeButtons();
         this.updateModeDisplay();
-        
-        if (broadcast) {
-            this.broadcastTimerState();
-            this.broadcastMessage({
-                type: 'timer-action',
-                participantId: this.myId,
-                action: 'mode-change',
-                data: { mode, duration }
-            });
-        }
+        this.updateTimerInFirebase();
     }
     
     startLocalTimer() {
         this.stopLocalTimer();
-        let broadcastCounter = 0;
         this.interval = setInterval(() => {
             if (this.isRunning) {
                 const elapsed = (Date.now() - this.startTime) / 1000;
@@ -770,13 +707,6 @@ class StudyTimer {
                 
                 this.updateDisplay();
                 this.updateProgress();
-                
-                // Broadcast timer state every 2 seconds if we're the host
-                broadcastCounter++;
-                if (this.isHost && this.roomId && broadcastCounter >= 20) { // 20 * 100ms = 2 seconds
-                    this.broadcastTimerState();
-                    broadcastCounter = 0;
-                }
                 
                 if (this.timeLeft <= 0) {
                     this.onTimerComplete();
@@ -797,30 +727,28 @@ class StudyTimer {
         this.timeLeft = 0;
         this.stopLocalTimer();
         this.updateButtons();
+        this.updateTimerInFirebase();
         
-        // Play notification sound
         this.playNotificationSound();
         
-        // Show completion message
         const modeText = this.currentMode === 'focus' ? 'Focus session' : 'Break';
         this.showToast(`${modeText} complete! Great work! 🎉`);
         
-        // Auto-suggest next mode
+        if (this.roomId) {
+            const completionMsg = `Timer completed: ${modeText} finished! 🎯`;
+            this.addChatMessage(completionMsg, 'system');
+        }
+        
         setTimeout(() => {
             if (this.currentMode === 'focus') {
-                this.showToast('Ready for a break?');
+                this.showToast('Ready for a break? 🧘‍♀️');
             } else {
-                this.showToast('Ready to focus again?');
+                this.showToast('Ready to focus again? 💪');
             }
         }, 2000);
-        
-        if (this.isHost || !this.roomId) {
-            this.broadcastTimerState();
-        }
     }
     
     playNotificationSound() {
-        // Create a simple beep sound using Web Audio API
         try {
             const audioContext = new (window.AudioContext || window.webkitAudioContext)();
             const oscillator = audioContext.createOscillator();
@@ -843,21 +771,6 @@ class StudyTimer {
         }
     }
     
-    broadcastTimerState() {
-        if (!this.roomId) return;
-        // Host always broadcasts, but participants also broadcast their state on join for redundancy
-        this.broadcastMessage({
-            type: 'timer-state',
-            participantId: this.myId,
-            mode: this.currentMode,
-            duration: this.duration,
-            timeLeft: this.timeLeft,
-            isRunning: this.isRunning,
-            isPaused: this.isPaused,
-            startTime: this.startTime
-        });
-    }
-    
     updateDisplay() {
         const minutes = Math.floor(this.timeLeft / 60);
         const seconds = Math.floor(this.timeLeft % 60);
@@ -874,14 +787,10 @@ class StudyTimer {
     updateButtons() {
         if (this.isRunning) {
             this.startBtn.textContent = 'Pause';
-            this.startBtn.classList.remove('primary');
-            this.startBtn.classList.add('primary');
         } else if (this.isPaused) {
             this.startBtn.textContent = 'Resume';
-            this.startBtn.classList.add('primary');
         } else {
             this.startBtn.textContent = 'Start';
-            this.startBtn.classList.add('primary');
         }
     }
     
@@ -889,29 +798,43 @@ class StudyTimer {
         const modeNames = {
             'focus': 'Focus Session',
             'short-break': 'Short Break',
-            'long-break': 'Long Break'
+            'long-break': 'Long Break',
+            'extended': 'Extended Session',
+            'custom': 'Custom Timer'
         };
         this.modeDisplay.textContent = modeNames[this.currentMode] || 'Focus Session';
     }
     
     updateModeButtons() {
         this.modeButtons.forEach(btn => {
-            btn.classList.toggle('active', btn.dataset.mode === this.currentMode);
+            if (btn.dataset.mode) {
+                btn.classList.toggle('active', btn.dataset.mode === this.currentMode);
+            } else if (btn.id === 'custom-mode-btn') {
+                btn.classList.toggle('active', this.currentMode === 'custom');
+            }
         });
     }
     
     updateParticipantCount() {
         const count = this.participants.size;
-        console.log('Updating participant count:', count, 'participants:', Array.from(this.participants.keys()));
+        
         if (count === 1) {
             this.participantCount.textContent = '1 student';
         } else {
             this.participantCount.textContent = `${count} students`;
         }
         
-        // Show host indicator
         if (this.roomId && this.isHost && count > 1) {
             this.participantCount.textContent += ' (you are host)';
+        }
+        
+        const dot = document.querySelector('.dot');
+        if (dot) {
+            if (count > 1) {
+                dot.style.background = '#10b981';
+            } else {
+                dot.style.background = '#7dd3fc';
+            }
         }
     }
     
@@ -922,21 +845,32 @@ class StudyTimer {
             this.toast.classList.remove('show');
         }, 3000);
     }
+    
+    cleanup() {
+        if (this.heartbeatInterval) {
+            clearInterval(this.heartbeatInterval);
+        }
+        
+        this.stopLocalTimer();
+        
+        if (this.participantsRef) {
+            this.participantsRef.child(this.myId).remove();
+        }
+        
+        if (this.roomRef) {
+            this.roomRef.off();
+        }
+    }
 }
 
-// Initialize the timer when the page loads
+// Initialize when page loads
 document.addEventListener('DOMContentLoaded', () => {
     window.studyTimer = new StudyTimer();
 });
 
-// Cleanup when page is closed
+// Cleanup on page unload
 window.addEventListener('beforeunload', () => {
-    if (window.studyTimer && window.studyTimer.channel) {
-        window.studyTimer.broadcastMessage({
-            type: 'leave',
-            participantId: window.studyTimer.myId,
-            userName: window.studyTimer.userName,
-            timestamp: Date.now()
-        });
+    if (window.studyTimer) {
+        window.studyTimer.cleanup();
     }
 });
