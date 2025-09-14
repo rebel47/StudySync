@@ -3,126 +3,238 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>StudySync - Collaborative Timer</title>
-    <link rel="stylesheet" href="styles.css">
+    <title>StudySync Pro - Enhanced Collaborative Timer</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="stylesheet" href="styles/components.css">
+    <link rel="stylesheet" href="styles/responsive.css">
 </head>
 <body>
-    <div class="container">
-        <div class="card">
-            <div class="header">
-                <h1 class="title">StudySync</h1>
-                <div class="status-bar">
-                    <div class="participants">
-                        <div class="dot"></div>
-                        <span id="participant-count">1 student</span>
+    <div class="app">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <div class="logo">StudySync Pro</div>
+                <div class="header-actions">
+                    <div class="status-indicator">
+                        <div class="status-dot" id="connectionStatus"></div>
+                        <span id="participantCount">1 student</span>
                     </div>
-                    <button class="btn" id="fullscreen-btn">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                            <path d="M1.5 1a.5.5 0 0 0-.5.5v4a.5.5 0 0 1-1 0v-4A1.5 1.5 0 0 1 1.5 0h4a.5.5 0 0 1 0 1h-4zM10 .5a.5.5 0 0 1 .5-.5h4A1.5 1.5 0 0 1 16 1.5v4a.5.5 0 0 1-1 0v-4a.5.5 0 0 0-.5-.5h-4a.5.5 0 0 1-.5-.5zM.5 10a.5.5 0 0 1 .5.5v4a.5.5 0 0 0 .5.5h4a.5.5 0 0 1 0 1h-4A1.5 1.5 0 0 1 0 14.5v-4a.5.5 0 0 1 .5-.5zm15 0a.5.5 0 0 1 .5.5v4a1.5 1.5 0 0 1-1.5 1.5h-4a.5.5 0 0 1 0-1h4a.5.5 0 0 0 .5-.5v-4a.5.5 0 0 1 .5-.5z"/>
-                        </svg>
-                        Focus Mode
-                    </button>
-                    <button class="btn fullscreen-exit-btn" id="fullscreen-exit-btn" style="display: none;">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                            <path d="M5.5 0a.5.5 0 0 1 .5.5v4A1.5 1.5 0 0 1 4.5 6h-4a.5.5 0 0 1 0-1h4a.5.5 0 0 0 .5-.5v-4a.5.5 0 0 1 .5-.5zm5 0a.5.5 0 0 1 .5.5v4a.5.5 0 0 0 .5.5h4a.5.5 0 0 1 0 1h-4A1.5 1.5 0 0 1 10 4.5v-4a.5.5 0 0 1 .5-.5zM0 10.5a.5.5 0 0 1 .5-.5h4A1.5 1.5 0 0 1 6 11.5v4a.5.5 0 0 1-1 0v-4a.5.5 0 0 0-.5-.5h-4a.5.5 0 0 1-.5-.5zm10 1a1.5 1.5 0 0 1 1.5-1.5h4a.5.5 0 0 1 0 1h-4a.5.5 0 0 0-.5.5v4a.5.5 0 0 1-1 0v-4z"/>
-                        </svg>
-                        Exit Focus
-                    </button>
+                    <button class="btn" id="settingsBtn">⚙️</button>
+                    <button class="btn" id="focusBtn">🎯 Focus</button>
                 </div>
             </div>
-            
-            <div class="timer-section">
-                <div class="mode-display" id="mode-display">Focus Session</div>
-                <div style="position: relative; display: inline-block;">
-                    <div class="timer-display" id="timer-display">25:00</div>
-                    <svg class="progress-ring">
-                        <circle cx="60" cy="60" r="54" 
-                                stroke-dasharray="339.29" 
+        </header>
+
+        <!-- Main Content -->
+        <main class="main">
+            <div class="grid">
+                <!-- Timer Section -->
+                <div class="timer-card">
+                    <div class="mode-display" id="modeDisplay">Focus Session</div>
+                    
+                    <div class="timer-container">
+                        <div class="timer-display" id="timerDisplay">25:00</div>
+                        <svg class="timer-ring" viewBox="0 0 200 200">
+                            <defs>
+                                <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" style="stop-color:#3b82f6"/>
+                                    <stop offset="100%" style="stop-color:#06b6d4"/>
+                                </linearGradient>
+                            </defs>
+                            <circle cx="100" cy="100" r="90" 
+                                stroke-dasharray="565.48" 
                                 stroke-dashoffset="0" 
-                                id="progress-circle">
-                        </circle>
-                    </svg>
+                                id="progressCircle">
+                            </circle>
+                        </svg>
+                    </div>
+
+                    <div class="controls">
+                        <button class="btn primary" id="startBtn">Start</button>
+                        <button class="btn" id="pauseBtn" style="display: none;">Pause</button>
+                        <button class="btn" id="resetBtn">Reset</button>
+                        <button class="btn" id="skipBtn">Skip</button>
+                    </div>
+
+                    <div class="mode-selector">
+                        <div class="mode-btn active" data-mode="focus" data-duration="1500">Focus 25m</div>
+                        <div class="mode-btn" data-mode="short-break" data-duration="300">Break 5m</div>
+                        <div class="mode-btn" data-mode="long-break" data-duration="3300">Long 55m</div>
+                        <div class="mode-btn" data-mode="custom" data-duration="3000">Custom</div>
+                    </div>
                 </div>
-                
-                <div class="controls">
-                    <button class="btn primary" id="start-btn">Start</button>
-                    <button class="btn" id="reset-btn">Reset</button>
-                </div>
-                
-                <div class="mode-buttons">
-                    <div class="mode-btn active" data-mode="focus" data-duration="1500">Focus (25m)</div>
-                    <div class="mode-btn" data-mode="short-break" data-duration="300">Short Break (5m)</div>
-                    <div class="mode-btn" data-mode="long-break" data-duration="900">Long Break (15m)</div>
-                    <div class="mode-btn" data-mode="extended" data-duration="3300">Extended (55m)</div>
-                    <div class="mode-btn" id="custom-mode-btn">Custom</div>
-                </div>
-                
-                <!-- Custom Timer Modal -->
-                <div class="modal" id="custom-modal">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h3>Custom Timer</h3>
-                            <button class="btn-close" id="close-modal-btn">×</button>
+
+                <!-- Sidebar -->
+                <div>
+                    <!-- Session Stats -->
+                    <div class="stats-card">
+                        <div class="stats-header">
+                            <h3 class="stats-title">Today's Progress</h3>
                         </div>
-                        <div class="modal-body">
-                            <div class="input-group">
-                                <label for="custom-minutes">Minutes:</label>
-                                <input type="number" id="custom-minutes" min="1" max="180" value="30" class="custom-input">
+                        <div class="stats-grid">
+                            <div class="stat-item">
+                                <div class="stat-value" id="sessionsCompleted">0</div>
+                                <div class="stat-label">Sessions</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-value" id="focusTime">0h</div>
+                                <div class="stat-label">Focus Time</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-value" id="currentStreak">0</div>
+                                <div class="stat-label">Streak</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-value" id="productivityScore">0%</div>
+                                <div class="stat-label">Score</div>
                             </div>
                         </div>
-                        <div class="modal-footer">
-                            <button class="btn" id="cancel-custom-btn">Cancel</button>
-                            <button class="btn primary" id="set-custom-btn">Set Timer</button>
+                    </div>
+
+                    <!-- Room Management -->
+                    <div class="room-card">
+                        <div class="room-header">
+                            <h3 class="room-title">Study Room</h3>
+                            <div class="room-code" id="roomCode">Solo</div>
+                        </div>
+                        
+                        <div class="room-actions">
+                            <button class="btn" id="createRoomBtn">Create Room</button>
+                            <button class="btn" id="joinRoomBtn">Join Room</button>
+                        </div>
+                        
+                        <div class="input-group" id="roomUrlGroup" style="display: none;">
+                            <input type="text" class="input" id="roomUrl" readonly placeholder="Room URL will appear here">
+                            <button class="btn" id="copyRoomBtn">📋 Copy</button>
+                        </div>
+
+                        <!-- Chat Section -->
+                        <div class="chat-section" id="chatSection" style="display: none;">
+                            <div class="chat-header-integrated">
+                                <h4 class="chat-title-small">Study Chat</h4>
+                                <span>💬</span>
+                            </div>
+                            
+                            <div class="chat-messages-compact" id="chatMessages">
+                                <div class="message other">
+                                    <div class="message-content">Welcome to your study room! 🎯</div>
+                                    <div class="message-meta">System • now</div>
+                                </div>
+                            </div>
+
+                            <div class="chat-input-container-compact">
+                                <input type="text" class="chat-input" id="chatInput" placeholder="Type a message..." maxlength="200">
+                                <button class="send-btn" id="sendBtn">
+                                    <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                                        <path d="M15.854.146a.5.5 0 0 1 .11.54L13.026 8.03a.5.5 0 0 1-.708.132L8 6.707l-1.855.925a.5.5 0 0 1-.671-.133L1.146 3.146a.5.5 0 0 1 .708-.708L6 6.586l6.146-6.44a.5.5 0 0 1 .708 0z"/>
+                                    </svg>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
-            
-            <div class="share-section">
-                <div class="share-title">Study Together</div>
-                <div class="share-url">
-                    <input type="text" class="url-input" id="room-url" readonly placeholder="Click 'Create Room' to generate a shareable link">
-                </div>
-                <div class="share-actions">
-                    <button class="btn" id="create-room-btn">Create Room</button>
-                    <button class="btn" id="copy-btn" disabled>Copy Link</button>
-                    <button class="btn" id="join-room-btn">Join Room</button>
-                    <button class="btn" id="toggle-chat-btn" disabled>
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                            <path d="M2.678 11.894a1 1 0 0 1 .287.801 10.97 10.97 0 0 1-.398 2c1.395-.323 2.247-.697 2.634-.893a1 1 0 0 1 .71-.074A8.06 8.06 0 0 0 8 14c3.996 0 7-2.807 7-6 0-3.192-3.004-6-7-6S1 4.808 1 8c0 1.468.617 2.83 1.678 3.894zm-.493 3.905a21.682 21.682 0 0 1-.713.129c-.2.032-.352-.176-.273-.362a9.68 9.68 0 0 0 .244-.637l.003-.01c.248-.72.45-1.548.524-2.319C.743 11.37 0 9.76 0 8c0-3.866 3.582-7 8-7s8 3.134 8 7-3.582 7-8 7a9.06 9.06 0 0 1-2.347-.306c-.52.263-1.639.742-3.468 1.105z"/>
-                        </svg>
-                        Chat
-                    </button>
-                </div>
+        </main>
+
+        <!-- Focus Mode Overlay -->
+        <div class="focus-overlay" id="focusOverlay">
+            <button class="focus-exit" id="focusExitBtn">Exit Focus</button>
+            <div class="mode-display" id="focusModeDisplay">Focus Session</div>
+            <div class="focus-timer" id="focusTimerDisplay">25:00</div>
+            <div class="focus-controls">
+                <button class="btn primary" id="focusStartBtn">Start</button>
+                <button class="btn" id="focusResetBtn">Reset</button>
             </div>
-            
-            <!-- Chat Panel -->
-            <div class="chat-panel" id="chat-panel">
-                <div class="chat-header">
-                    <span class="chat-title">Study Chat</span>
-                    <button class="btn-close" id="close-chat-btn">×</button>
-                </div>
-                <div class="chat-messages" id="chat-messages">
-                    <div class="chat-message system">
-                        <span class="message-text">Welcome to the study room! Chat with your study partners here.</span>
+        </div>
+
+        <!-- Settings Panel -->
+        <div class="settings-panel" id="settingsPanel">
+            <div class="settings-header">
+                <h3>Settings</h3>
+                <button class="btn" id="closeSettingsBtn">✕</button>
+            </div>
+            <div class="settings-content">
+                <div class="setting-group">
+                    <label class="setting-label">Sound Notifications</label>
+                    <div class="toggle">
+                        <div class="toggle-switch active" id="soundToggle">
+                            <div class="toggle-slider"></div>
+                        </div>
+                        <span>Play sound on completion</span>
                     </div>
                 </div>
-                <div class="chat-input-container">
-                    <input type="text" class="chat-input" id="chat-input" placeholder="Type a message..." maxlength="200">
-                    <button class="btn-send" id="send-chat-btn">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                            <path d="M15.854.146a.5.5 0 0 1 .11.54L13.026 8.03a.5.5 0 0 1-.708.132L8 6.707l-1.855.925a.5.5 0 0 1-.671-.133L1.146 3.146a.5.5 0 0 1 .708-.708L6 6.586l6.146-6.44a.5.5 0 0 1 .708 0z"/>
-                        </svg>
-                    </button>
+                
+                <div class="setting-group">
+                    <label class="setting-label">Auto-start Breaks</label>
+                    <div class="toggle">
+                        <div class="toggle-switch" id="autoBreakToggle">
+                            <div class="toggle-slider"></div>
+                        </div>
+                        <span>Automatically start break timers</span>
+                    </div>
+                </div>
+                
+                <div class="setting-group">
+                    <label class="setting-label">Desktop Notifications</label>
+                    <div class="toggle">
+                        <div class="toggle-switch" id="notificationToggle">
+                            <div class="toggle-slider"></div>
+                        </div>
+                        <span>Show browser notifications</span>
+                    </div>
+                </div>
+
+                <div class="setting-group">
+                    <label class="setting-label">Custom Focus Duration (minutes)</label>
+                    <input type="number" class="input" id="customDurationInput" min="1" max="120" value="25" placeholder="25">
+                </div>
+
+                <div class="setting-group">
+                    <label class="setting-label">Your Name</label>
+                    <input type="text" class="input" id="userNameInput" placeholder="Enter your name" maxlength="20">
                 </div>
             </div>
         </div>
+
+        <!-- Toast Notifications -->
+        <div class="toast" id="toast"></div>
     </div>
-    
-    <div class="toast" id="toast">Link copied to clipboard!</div>
+
+    <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+    <!-- Core Modules -->
+    <script src="js/config/firebase.js"></script>
+    <script src="js/modules/EventEmitter.js"></script>
+    <script src="js/modules/TimerModule.js"></script>
+    <script src="js/modules/FirebaseModule.js"></script>
+    <script src="js/modules/StatsModule.js"></script>
+    <script src="js/modules/SettingsModule.js"></script>
+    <script src="js/modules/UIModule.js"></script>
+    <script src="js/modules/AudioModule.js"></script>
     
-    <script src="script.js"></script>
+    <!-- Main Application -->
+    <script src="js/StudySyncApp.js"></script>
+    
+    <!-- App Initialization -->
+    <script src="js/main.js"></script>
+    
+    <script>
+        // Quick debug - this will show/hide chat when you click Create Room
+        document.addEventListener('DOMContentLoaded', function() {
+            const createBtn = document.getElementById('createRoomBtn');
+            const chatSection = document.getElementById('chatSection');
+            const roomUrlGroup = document.getElementById('roomUrlGroup');
+            
+            if (createBtn && chatSection && roomUrlGroup) {
+                createBtn.addEventListener('click', function() {
+                    chatSection.style.display = 'block';
+                    roomUrlGroup.style.display = 'block';
+                    console.log('Chat should be visible now!');
+                });
+            }
+        });
+    </script>
 </body>
 </html>
