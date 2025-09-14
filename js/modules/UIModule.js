@@ -276,22 +276,22 @@ class UIModule extends EventEmitter {
      */
     addChatMessage(message, isOwn = false, senderName = 'Unknown') {
         if (!this.elements.chatMessages) return;
-        
         const messageEl = document.createElement('div');
         messageEl.className = `message ${isOwn ? 'own' : 'other'}`;
-        
         const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        
         messageEl.innerHTML = `
             <div class="message-content">${this._escapeHtml(message)}</div>
             <div class="message-meta">${isOwn ? 'You' : this._escapeHtml(senderName)} • ${time}</div>
         `;
-        
         this.elements.chatMessages.appendChild(messageEl);
         this._scrollToBottom(this.elements.chatMessages);
-        
         // Auto-scroll animation
         messageEl.style.animationDelay = '0.1s';
+
+        // Show chat notification if chat is closed and message is not own
+        if (!this.state.chatOpen && !isOwn) {
+            this._showChatNotification();
+        }
     }
 
     /**
@@ -564,6 +564,41 @@ class UIModule extends EventEmitter {
     _scrollToBottom(element) {
         if (element) {
             element.scrollTop = element.scrollHeight;
+        }
+    }
+
+    /**
+     * Show chat notification
+     * @private
+     */
+    _showChatNotification() {
+        if (!this.elements.chatNotification) return;
+        
+        const current = parseInt(this.elements.chatNotification.textContent) || 0;
+        const newCount = current + 1;
+        
+        this.elements.chatNotification.textContent = newCount;
+        this.elements.chatNotification.style.display = 'block';
+        
+        // Make chat button pulse
+        if (this.elements.chatToggleBtn) {
+            this.elements.chatToggleBtn.style.animation = 'pulse 2s infinite';
+        }
+    }
+
+    /**
+     * Clear chat notification
+     * @private
+     */
+    _clearChatNotification() {
+        if (this.elements.chatNotification) {
+            this.elements.chatNotification.style.display = 'none';
+            this.elements.chatNotification.textContent = '0';
+        }
+        
+        // Stop button pulse
+        if (this.elements.chatToggleBtn) {
+            this.elements.chatToggleBtn.style.animation = '';
         }
     }
 
