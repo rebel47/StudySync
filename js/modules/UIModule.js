@@ -118,6 +118,15 @@ class UIModule extends EventEmitter {
         this._addEventListener('chatInput', 'keypress', (e) => {
             if (e.key === 'Enter') this._sendChatMessage();
         });
+
+        // Chat sidebar open/close logic
+        this._addEventListener('chatToggleBtn', 'click', () => {
+            this.state.chatOpen = true;
+            this._clearChatNotification();
+        });
+        this._addEventListener('chatCloseBtn', 'click', () => {
+            this.state.chatOpen = false;
+        });
         
         // Focus mode
         this._addEventListener('focusBtn', 'click', () => this.toggleFocusMode());
