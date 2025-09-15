@@ -29,11 +29,19 @@ class TimerModule extends EventEmitter {
      */
     start() {
         if (this.isRunning) return;
-        
+
+        // If timer is at 0, reset to default duration for current mode
+        if (this.timeLeft === 0) {
+            if (this.modes[this.currentMode]) {
+                this.duration = this.modes[this.currentMode].duration;
+                this.timeLeft = this.duration;
+            }
+        }
+
         this.isRunning = true;
         this.isPaused = false;
         this.startTime = Date.now() - (this.duration - this.timeLeft) * 1000;
-        
+
         this._startInterval();
         this.emit('start', {
             mode: this.currentMode,
