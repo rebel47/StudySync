@@ -15,6 +15,9 @@
             <div class="header-content">
                 <div class="logo">StudySync Pro</div>
                 <div class="header-actions">
+                    <button class="btn" id="googleSignInBtn">Sign in with Google</button>
+<button class="btn" id="googleSignOutBtn" style="display:none;">Sign out</button>
+<span id="userNameDisplay" style="margin-left:8px;"></span>
                     <div class="status-indicator">
                         <div class="status-dot" id="connectionStatus"></div>
                         <span id="participantCount">1 student</span>
@@ -211,6 +214,7 @@
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
 
     <!-- Core Modules -->
     <script src="js/config/firebase.js"></script>
@@ -221,7 +225,7 @@
     <script src="js/modules/SettingsModule.js"></script>
     <script src="js/modules/UIModule.js"></script>
     <script src="js/modules/AudioModule.js"></script>
-    
+    <script src="js/modules/AuthModule.js"></script>
     <!-- Main Application -->
     <script src="js/StudySyncApp.js"></script>
     <!-- App Initialization -->
