@@ -1,5 +1,6 @@
 /**
- * Enhanced AuthModule - Google Authentication and User Data Management
+ * AuthModule - Complete Google Authentication and User Data Management
+ * File: js/modules/AuthModule.js
  */
 
 class AuthModule extends EventEmitter {
@@ -52,7 +53,6 @@ class AuthModule extends EventEmitter {
 
     /**
      * Initialize Firebase Auth
-     * @returns {Promise<boolean>} Success status
      */
     async initialize() {
         try {
@@ -85,7 +85,6 @@ class AuthModule extends EventEmitter {
 
     /**
      * Sign in with Google
-     * @returns {Promise<boolean>} Success status
      */
     async signInWithGoogle() {
         if (!this.isInitialized) {
@@ -95,12 +94,8 @@ class AuthModule extends EventEmitter {
 
         try {
             const provider = new firebase.auth.GoogleAuthProvider();
-            
-            // Request additional scopes
             provider.addScope('profile');
             provider.addScope('email');
-            
-            // Set custom parameters
             provider.setCustomParameters({
                 prompt: 'select_account'
             });
@@ -122,13 +117,10 @@ class AuthModule extends EventEmitter {
 
     /**
      * Sign out user
-     * @returns {Promise<boolean>} Success status
      */
     async signOut() {
         try {
-            // Sync any pending data before signing out
             await this.syncUserData();
-            
             await this.auth.signOut();
             this.emit('signOutSuccess');
             return true;
@@ -141,12 +133,9 @@ class AuthModule extends EventEmitter {
 
     /**
      * Handle authentication state changes
-     * @param {firebase.User|null} user - Firebase user object
-     * @private
      */
     async handleAuthStateChange(user) {
         if (user) {
-            // User signed in
             this.user = user;
             this.isAuthenticated = true;
             
@@ -159,7 +148,6 @@ class AuthModule extends EventEmitter {
             
             console.log('User signed in:', user.displayName);
         } else {
-            // User signed out
             this.user = null;
             this.isAuthenticated = false;
             this.resetUserData();
@@ -175,7 +163,6 @@ class AuthModule extends EventEmitter {
 
     /**
      * Load user data from Firebase
-     * @private
      */
     async loadUserData() {
         if (!this.user) return;
@@ -188,12 +175,9 @@ class AuthModule extends EventEmitter {
                 const data = snapshot.val();
                 this.userData = this.mergeUserData(this.userData, data);
                 
-                // Update last login
                 await this.updateLastLogin();
-                
                 this.emit('userDataLoaded', this.userData);
             } else {
-                // Create new user data
                 await this.createUserProfile();
             }
         } catch (error) {
@@ -204,7 +188,6 @@ class AuthModule extends EventEmitter {
 
     /**
      * Create new user profile
-     * @private
      */
     async createUserProfile() {
         if (!this.user) return;
@@ -233,22 +216,15 @@ class AuthModule extends EventEmitter {
 
     /**
      * Update user progress data
-     * @param {Object} progressData - Progress data to update
      */
     async updateProgress(progressData) {
         if (!this.isAuthenticated) return;
 
         try {
-            // Merge with existing progress
             this.userData.progress = { ...this.userData.progress, ...progressData };
-            
-            // Calculate level and experience
             this.calculateLevelAndExperience();
-            
-            // Check for new achievements
             await this.checkAchievements();
             
-            // Sync to Firebase if online, otherwise queue
             if (this.isOnline) {
                 await this.syncProgress();
             } else {
@@ -264,7 +240,6 @@ class AuthModule extends EventEmitter {
 
     /**
      * Add session to history
-     * @param {Object} session - Session data
      */
     async addSession(session) {
         if (!this.isAuthenticated) return;
@@ -277,18 +252,14 @@ class AuthModule extends EventEmitter {
                 syncedAt: Date.now()
             };
             
-            // Add to local history
             this.userData.sessionHistory.unshift(sessionWithId);
             
-            // Keep only last 100 sessions
             if (this.userData.sessionHistory.length > 100) {
                 this.userData.sessionHistory = this.userData.sessionHistory.slice(0, 100);
             }
             
-            // Update progress based on session
             await this.updateProgressFromSession(session);
             
-            // Sync to Firebase
             if (this.isOnline) {
                 await this.syncSessionHistory();
             } else {
@@ -304,8 +275,6 @@ class AuthModule extends EventEmitter {
 
     /**
      * Update progress from session data
-     * @param {Object} session - Session data
-     * @private
      */
     async updateProgressFromSession(session) {
         const updates = {};
@@ -321,7 +290,6 @@ class AuthModule extends EventEmitter {
             );
             
             if (!lastSession) {
-                // First session today
                 const yesterday = new Date(Date.now() - 86400000).toDateString();
                 const yesterdaySession = this.userData.sessionHistory.find(s => 
                     s.mode === 'focus' && s.completed && s.date === yesterday
@@ -333,7 +301,6 @@ class AuthModule extends EventEmitter {
                     updates.currentStreak = 1;
                 }
                 
-                // Update longest streak
                 updates.longestStreak = Math.max(
                     this.userData.progress.longestStreak || 0,
                     updates.currentStreak
@@ -343,24 +310,19 @@ class AuthModule extends EventEmitter {
             updates.totalBreakTime = (this.userData.progress.totalBreakTime || 0) + session.duration;
         }
         
-        // Calculate productivity score
         updates.productivityScore = this.calculateProductivityScore();
-        
         await this.updateProgress(updates);
     }
 
     /**
      * Calculate user level and experience
-     * @private
      */
     calculateLevelAndExperience() {
         const sessions = this.userData.progress.sessionsCompleted || 0;
         const focusHours = Math.floor((this.userData.progress.totalFocusTime || 0) / 3600);
         
-        // Experience calculation
         const experience = (sessions * 10) + (focusHours * 50);
         
-        // Level calculation (100 XP per level, increasing by 50 each level)
         let level = 1;
         let requiredXP = 100;
         let totalXP = 0;
@@ -377,21 +339,14 @@ class AuthModule extends EventEmitter {
 
     /**
      * Calculate productivity score
-     * @returns {number} Productivity score (0-100)
-     * @private
      */
     calculateProductivityScore() {
         const sessions = this.userData.progress.sessionsCompleted || 0;
         const focusTime = this.userData.progress.totalFocusTime || 0;
         const streak = this.userData.progress.currentStreak || 0;
         
-        // Base score from sessions (max 40 points)
         const sessionScore = Math.min(40, sessions * 2);
-        
-        // Time score (max 40 points) - 1 point per hour
         const timeScore = Math.min(40, focusTime / 3600);
-        
-        // Streak bonus (max 20 points)
         const streakScore = Math.min(20, streak * 2);
         
         return Math.round(sessionScore + timeScore + streakScore);
@@ -399,7 +354,6 @@ class AuthModule extends EventEmitter {
 
     /**
      * Check for new achievements
-     * @private
      */
     async checkAchievements() {
         const newAchievements = [];
@@ -486,9 +440,7 @@ class AuthModule extends EventEmitter {
                 lastSyncAt: Date.now()
             });
             
-            // Clear sync queue
             this.syncQueue = [];
-            
             this.emit('dataSynced');
         } catch (error) {
             console.error('Failed to sync user data:', error);
@@ -534,7 +486,6 @@ class AuthModule extends EventEmitter {
 
     /**
      * Update last login timestamp
-     * @private
      */
     async updateLastLogin() {
         if (!this.isAuthenticated) return;
@@ -549,9 +500,6 @@ class AuthModule extends EventEmitter {
 
     /**
      * Queue sync operation for offline mode
-     * @param {string} type - Data type to sync
-     * @param {*} data - Data to sync
-     * @private
      */
     queueSync(type, data) {
         this.syncQueue.push({
@@ -560,7 +508,6 @@ class AuthModule extends EventEmitter {
             timestamp: Date.now()
         });
         
-        // Limit queue size
         if (this.syncQueue.length > 50) {
             this.syncQueue = this.syncQueue.slice(-50);
         }
@@ -568,19 +515,16 @@ class AuthModule extends EventEmitter {
 
     /**
      * Process sync queue when coming back online
-     * @private
      */
     async processSyncQueue() {
         if (!this.isAuthenticated || !this.isOnline || this.syncQueue.length === 0) return;
         
         try {
-            // Group by type and use latest data
             const grouped = {};
             for (const item of this.syncQueue) {
                 grouped[item.type] = item.data;
             }
             
-            // Sync each type
             for (const [type, data] of Object.entries(grouped)) {
                 const ref = this.db.ref(`users/${this.user.uid}/${type}`);
                 await ref.set(data);
@@ -595,7 +539,6 @@ class AuthModule extends EventEmitter {
 
     /**
      * Setup online status monitoring
-     * @private
      */
     setupOnlineStatusMonitoring() {
         window.addEventListener('online', () => {
@@ -612,8 +555,6 @@ class AuthModule extends EventEmitter {
 
     /**
      * Handle authentication errors
-     * @param {Error} error - Authentication error
-     * @private
      */
     handleAuthError(error) {
         let message = 'Authentication failed';
@@ -640,15 +581,10 @@ class AuthModule extends EventEmitter {
 
     /**
      * Merge user data safely
-     * @param {Object} defaultData - Default user data structure
-     * @param {Object} loadedData - Data loaded from Firebase
-     * @returns {Object} Merged data
-     * @private
      */
     mergeUserData(defaultData, loadedData) {
         const merged = JSON.parse(JSON.stringify(defaultData));
         
-        // Deep merge each section
         for (const [key, value] of Object.entries(loadedData)) {
             if (merged[key] && typeof merged[key] === 'object' && !Array.isArray(merged[key])) {
                 merged[key] = { ...merged[key], ...value };
@@ -662,7 +598,6 @@ class AuthModule extends EventEmitter {
 
     /**
      * Reset user data to defaults
-     * @private
      */
     resetUserData() {
         this.userData = {
@@ -698,7 +633,6 @@ class AuthModule extends EventEmitter {
 
     /**
      * Get user profile information
-     * @returns {Object|null} User profile
      */
     getUserProfile() {
         return this.isAuthenticated ? this.userData.profile : null;
@@ -706,7 +640,6 @@ class AuthModule extends EventEmitter {
 
     /**
      * Get user progress data
-     * @returns {Object} Progress data
      */
     getUserProgress() {
         return this.userData.progress;
@@ -714,7 +647,6 @@ class AuthModule extends EventEmitter {
 
     /**
      * Get user achievements
-     * @returns {Array} Achievements array
      */
     getUserAchievements() {
         return this.userData.achievements;
@@ -722,8 +654,6 @@ class AuthModule extends EventEmitter {
 
     /**
      * Get user session history
-     * @param {number} limit - Number of sessions to return
-     * @returns {Array} Session history
      */
     getUserSessions(limit = 20) {
         return this.userData.sessionHistory.slice(0, limit);
@@ -731,7 +661,6 @@ class AuthModule extends EventEmitter {
 
     /**
      * Get authentication status
-     * @returns {Object} Auth status
      */
     getAuthStatus() {
         return {
@@ -745,7 +674,6 @@ class AuthModule extends EventEmitter {
 
     /**
      * Export user data
-     * @returns {Object} Complete user data
      */
     exportUserData() {
         return {
@@ -762,7 +690,6 @@ class AuthModule extends EventEmitter {
         this.removeAllListeners();
         
         if (this.auth) {
-            // Firebase auth doesn't have explicit cleanup
             this.auth = null;
         }
         

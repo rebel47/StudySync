@@ -7,6 +7,576 @@
     <link rel="stylesheet" href="styles/main.css">
     <link rel="stylesheet" href="styles/components.css">
     <link rel="stylesheet" href="styles/responsive.css">
+    
+    <!-- Auth Specific Styles -->
+    <style>
+        /* Auth Section Styles */
+        .auth-section {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .user-profile-section {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.5rem 1rem;
+            background: var(--bg-glass);
+            border: 1px solid var(--border);
+            border-radius: 2rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .user-profile-section:hover {
+            background: var(--bg-card);
+            border-color: var(--accent);
+        }
+
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: 2px solid var(--accent);
+        }
+
+        .user-info {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .user-name {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            line-height: 1;
+        }
+
+        .sync-status {
+            font-size: 0.75rem;
+            line-height: 1;
+            margin-top: 2px;
+        }
+
+        .sync-status.synced { color: var(--success); }
+        .sync-status.syncing { color: var(--warning); }
+        .sync-status.offline { color: var(--text-muted); }
+
+        /* Level and Experience Styles */
+        .level-section {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            padding: 1rem;
+            background: var(--bg-card);
+            border-radius: 0.75rem;
+            border: 1px solid var(--border);
+        }
+
+        .level-display {
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        .level-number {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--accent);
+            line-height: 1;
+        }
+
+        .level-label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .experience-container {
+            flex: 1;
+        }
+
+        .experience-bar {
+            width: 100%;
+            height: 8px;
+            background: var(--bg-secondary);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 0.5rem;
+        }
+
+        .experience-progress {
+            height: 100%;
+            background: var(--gradient-primary);
+            transition: width 0.5s ease;
+            border-radius: 4px;
+        }
+
+        .experience-text {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            text-align: center;
+        }
+
+        /* Achievements Section */
+        .achievements-section {
+            margin-top: 1.5rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid var(--border);
+        }
+
+        .achievements-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+        }
+
+        .achievements-header h4 {
+            margin: 0;
+            color: var(--text-primary);
+            font-size: 1rem;
+        }
+
+        .achievements-count {
+            background: var(--accent);
+            color: white;
+            padding: 0.25rem 0.5rem;
+            border-radius: 1rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .btn.small {
+            padding: 0.5rem 1rem;
+            font-size: 0.75rem;
+            min-width: auto;
+        }
+
+        .achievements-preview {
+            display: flex;
+            gap: 0.5rem;
+            overflow-x: auto;
+            padding-bottom: 0.5rem;
+        }
+
+        .achievement-preview-item {
+            flex-shrink: 0;
+            width: 60px;
+            height: 60px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .achievement-preview-item:hover {
+            border-color: var(--accent);
+            transform: translateY(-2px);
+        }
+
+        /* Achievement Notification Styles */
+        .achievement-notification {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0.8);
+            z-index: 2000;
+            opacity: 0;
+            transition: all 0.3s ease;
+            pointer-events: none;
+        }
+
+        .achievement-notification.show {
+            transform: translate(-50%, -50%) scale(1);
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .achievement-popup {
+            background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+            border: 2px solid #fbbf24;
+            border-radius: 1rem;
+            padding: 2rem;
+            min-width: 300px;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+            backdrop-filter: blur(20px);
+            animation: achievementGlow 2s infinite alternate;
+        }
+
+        @keyframes achievementGlow {
+            from { box-shadow: 0 20px 60px rgba(251, 191, 36, 0.3); }
+            to { box-shadow: 0 20px 60px rgba(251, 191, 36, 0.6); }
+        }
+
+        .achievement-header {
+            margin-bottom: 1rem;
+        }
+
+        .achievement-unlock-icon {
+            font-size: 2rem;
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+
+        .achievement-unlock-text {
+            color: #fbbf24;
+            font-weight: 700;
+            font-size: 1.2rem;
+        }
+
+        .achievement-details {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            text-align: left;
+        }
+
+        .achievement-icon-large {
+            font-size: 3rem;
+            flex-shrink: 0;
+        }
+
+        .achievement-details h3 {
+            color: #e2e8f0;
+            margin: 0 0 0.5rem 0;
+            font-size: 1.1rem;
+        }
+
+        .achievement-details p {
+            color: #94a3b8;
+            margin: 0;
+            font-size: 0.9rem;
+        }
+
+        /* Panel Styles */
+        .profile-panel, .achievements-panel {
+            position: fixed;
+            top: 0;
+            right: -400px;
+            width: 350px;
+            height: 100vh;
+            background: var(--bg-secondary);
+            backdrop-filter: blur(var(--blur));
+            border-left: 1px solid var(--border);
+            transition: right 0.3s ease;
+            z-index: 300;
+            overflow-y: auto;
+        }
+
+        .profile-panel.open, .achievements-panel.open {
+            right: 0;
+        }
+
+        .profile-header, .achievements-header {
+            padding: 2rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: var(--bg-glass);
+        }
+
+        .profile-content, .achievements-content {
+            padding: 2rem;
+        }
+
+        .profile-avatar-section {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            padding: 1.5rem;
+            background: var(--bg-card);
+            border-radius: 1rem;
+            border: 1px solid var(--border);
+        }
+
+        .profile-avatar-large {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            border: 3px solid var(--accent);
+            flex-shrink: 0;
+        }
+
+        .profile-info h4 {
+            margin: 0 0 0.25rem 0;
+            color: var(--text-primary);
+            font-size: 1.125rem;
+        }
+
+        .profile-info p {
+            margin: 0 0 0.5rem 0;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+
+        .profile-info small {
+            color: var(--text-muted);
+            font-size: 0.75rem;
+        }
+
+        .profile-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .profile-stat {
+            text-align: center;
+            padding: 1rem;
+            background: var(--bg-card);
+            border-radius: 0.75rem;
+            border: 1px solid var(--border);
+        }
+
+        .profile-stat .stat-label {
+            display: block;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.5rem;
+        }
+
+        .profile-stat .stat-value {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--accent);
+        }
+
+        .profile-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .achievements-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .achievement-item {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1.5rem;
+            background: var(--bg-card);
+            border-radius: 1rem;
+            border: 1px solid var(--border);
+            transition: all 0.2s ease;
+        }
+
+        .achievement-item:hover {
+            border-color: var(--accent);
+            transform: translateY(-2px);
+        }
+
+        .achievement-item .achievement-icon {
+            font-size: 2rem;
+            flex-shrink: 0;
+        }
+
+        .achievement-content {
+            flex: 1;
+        }
+
+        .achievement-title {
+            margin: 0 0 0.25rem 0;
+            color: var(--text-primary);
+            font-size: 1rem;
+            font-weight: 600;
+        }
+
+        .achievement-description {
+            margin: 0 0 0.5rem 0;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            line-height: 1.4;
+        }
+
+        .achievement-date {
+            color: var(--text-muted);
+            font-size: 0.75rem;
+        }
+
+        .no-achievements {
+            text-align: center;
+            padding: 3rem 1rem;
+            color: var(--text-secondary);
+        }
+
+        .no-achievements .achievement-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
+        .no-achievements p {
+            margin: 0 0 0.5rem 0;
+            font-size: 1.125rem;
+            font-weight: 600;
+        }
+
+        .no-achievements small {
+            font-size: 0.875rem;
+            opacity: 0.8;
+        }
+
+        .btn.secondary {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+        }
+
+        .btn.secondary:hover {
+            background: var(--bg-glass);
+            color: var(--text-primary);
+            border-color: var(--accent);
+        }
+
+        .close-btn {
+            background: none !important;
+            border: none !important;
+            color: var(--text-secondary) !important;
+            font-size: 1.5rem !important;
+            cursor: pointer !important;
+            width: 32px !important;
+            height: 32px !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            border-radius: 50% !important;
+            transition: all 0.2s ease !important;
+            min-width: auto !important;
+            padding: 0 !important;
+        }
+
+        .close-btn:hover {
+            background: var(--bg-glass) !important;
+            color: var(--text-primary) !important;
+            transform: none !important;
+        }
+
+        /* Export Success Notification */
+        .export-success-notification {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0.8);
+            z-index: 2000;
+            opacity: 0;
+            transition: all 0.3s ease;
+            pointer-events: none;
+        }
+
+        .export-success-notification.show {
+            transform: translate(-50%, -50%) scale(1);
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .export-popup {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 1rem;
+            padding: 2rem;
+            min-width: 300px;
+            text-align: center;
+            box-shadow: var(--shadow);
+            backdrop-filter: blur(var(--blur));
+        }
+
+        .export-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        .export-content h3 {
+            margin: 0 0 1rem 0;
+            color: var(--text-primary);
+            font-size: 1.25rem;
+        }
+
+        .export-content p {
+            margin: 0 0 0.5rem 0;
+            color: var(--text-secondary);
+        }
+
+        .export-content code {
+            background: var(--bg-card);
+            padding: 0.5rem;
+            border-radius: 0.25rem;
+            font-family: monospace;
+            font-size: 0.875rem;
+            display: inline-block;
+            margin: 0.5rem 0;
+            color: var(--accent);
+        }
+
+        .export-content small {
+            color: var(--text-muted);
+            font-size: 0.75rem;
+        }
+
+        /* Mobile Responsive */
+        @media (max-width: 768px) {
+            .auth-section {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+            
+            .user-profile-section {
+                padding: 0.5rem;
+            }
+            
+            .profile-panel,
+            .achievements-panel {
+                width: 100vw;
+                right: -100vw;
+            }
+            
+            .profile-panel.open,
+            .achievements-panel.open {
+                right: 0;
+            }
+            
+            .level-section {
+                flex-direction: column;
+                text-align: center;
+                gap: 0.75rem;
+            }
+            
+            .profile-stats {
+                grid-template-columns: 1fr;
+            }
+            
+            .achievement-notification,
+            .export-success-notification {
+                left: 1rem;
+                right: 1rem;
+                transform: translateY(-50%) scale(0.8);
+                width: auto;
+            }
+            
+            .achievement-notification.show,
+            .export-success-notification.show {
+                transform: translateY(-50%) scale(1);
+            }
+        }
+    </style>
 </head>
 <body>
     <div class="app">
@@ -15,9 +585,28 @@
             <div class="header-content">
                 <div class="logo">StudySync Pro</div>
                 <div class="header-actions">
-                    <button class="btn" id="googleSignInBtn">Sign in with Google</button>
-                    <button class="btn" id="googleSignOutBtn" style="display:none;">Sign out</button>
-                    <span id="userNameDisplay" style="margin-left:8px;"></span>
+                    <!-- Auth Section -->
+                    <div class="auth-section">
+                        <button class="btn primary" id="googleSignInBtn">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                            </svg>
+                            Sign in with Google
+                        </button>
+                        
+                        <div class="user-profile-section" id="userProfile" style="display: none;">
+                            <img class="user-avatar" id="userAvatar" alt="User Avatar" style="display: none;">
+                            <div class="user-info">
+                                <div class="user-name" id="userNameDisplay"></div>
+                                <div class="sync-status" id="syncStatus">Synced</div>
+                            </div>
+                            <button class="btn secondary" id="googleSignOutBtn" style="display: none;">Sign Out</button>
+                        </div>
+                    </div>
+                    
                     <div class="status-indicator">
                         <div class="status-dot" id="connectionStatus"></div>
                         <span id="participantCount">1 student</span>
@@ -67,14 +656,68 @@
                         <div class="mode-btn active" data-mode="focus" data-duration="1500">Focus 25m</div>
                         <div class="mode-btn" data-mode="short-break" data-duration="300">Break 5m</div>
                         <div class="mode-btn" data-mode="long-focus" data-duration="3300">Focus 55m</div>
-                        <div class="mode-btn" data-mode="custom" data-duration="3000">Custom </div>
+                        <div class="mode-btn" data-mode="custom" data-duration="3000">Custom</div>
                     </div>
                 </div>
 
                 <!-- Sidebar -->
                 <div>
-                    <!-- Session Stats -->
-                    <div class="stats-card">
+                    <!-- Enhanced Progress Card with Auth -->
+                    <div class="stats-card" id="profileCard" style="display: none;">
+                        <div class="stats-header">
+                            <h3 class="stats-title">Your Progress</h3>
+                            <button class="btn small" id="exportDataBtn">📄 Export</button>
+                        </div>
+                        
+                        <!-- Level and Experience Section -->
+                        <div class="level-section">
+                            <div class="level-display">
+                                <div class="level-number" id="currentLevel">1</div>
+                                <div class="level-label">Level</div>
+                            </div>
+                            <div class="experience-container">
+                                <div class="experience-bar" id="experienceBar">
+                                    <div class="experience-progress"></div>
+                                </div>
+                                <div class="experience-text" id="experienceText">0/100 XP</div>
+                            </div>
+                        </div>
+                        
+                        <!-- Enhanced Stats Grid -->
+                        <div class="stats-grid">
+                            <div class="stat-item">
+                                <div class="stat-value" id="sessionsCompleted">0</div>
+                                <div class="stat-label">Sessions</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-value" id="focusTime">0h</div>
+                                <div class="stat-label">Focus Time</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-value" id="currentStreak">0</div>
+                                <div class="stat-label">Streak</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-value" id="productivityScore">0%</div>
+                                <div class="stat-label">Score</div>
+                            </div>
+                        </div>
+                        
+                        <!-- Achievements Section -->
+                        <div class="achievements-section">
+                            <div class="achievements-header">
+                                <h4>Achievements</h4>
+                                <span class="achievements-count" id="achievementsCount">0</span>
+                                <button class="btn small" id="viewAchievementsBtn">View All</button>
+                            </div>
+                            <div class="achievements-preview" id="achievementsPreview">
+                                <!-- Recent achievements will be shown here -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Default Stats Card (when not signed in) -->
+                    <div class="stats-card" id="defaultStatsCard">
                         <div class="stats-header">
                             <h3 class="stats-title">Today's Progress</h3>
                         </div>
@@ -147,6 +790,58 @@
         <!-- Chat Overlay -->
         <div class="chat-overlay" id="chatOverlay"></div>
 
+        <!-- Profile Panel -->
+        <div class="profile-panel" id="profilePanel">
+            <div class="profile-header">
+                <h3>User Profile</h3>
+                <button class="btn close-btn" id="closeProfileBtn">✕</button>
+            </div>
+            <div class="profile-content">
+                <div class="profile-avatar-section">
+                    <img class="profile-avatar-large" id="profileAvatar" alt="Profile Avatar">
+                    <div class="profile-info">
+                        <h4 id="profileName">User Name</h4>
+                        <p id="profileEmail">user@example.com</p>
+                        <small id="memberSince">Member since...</small>
+                    </div>
+                </div>
+                
+                <div class="profile-stats">
+                    <div class="profile-stat">
+                        <span class="stat-label">Total XP</span>
+                        <span class="stat-value" id="totalExperience">0</span>
+                    </div>
+                    <div class="profile-stat">
+                        <span class="stat-label">Level</span>
+                        <span class="stat-value" id="levelDisplay">Level 1</span>
+                    </div>
+                    <div class="profile-stat">
+                        <span class="stat-label">Last Login</span>
+                        <span class="stat-value" id="lastLogin">Today</span>
+                    </div>
+                </div>
+                
+                <div class="profile-actions">
+                    <button class="btn" id="viewHistoryBtn">📊 View History</button>
+                    <button class="btn" id="manageDataBtn">⚙️ Manage Data</button>
+                    <button class="btn secondary" id="signOutFromProfile">Sign Out</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Achievements Panel -->
+        <div class="achievements-panel" id="achievementsPanel">
+            <div class="achievements-header">
+                <h3>Achievements</h3>
+                <button class="btn close-btn">✕</button>
+            </div>
+            <div class="achievements-content">
+                <div class="achievements-list" id="achievementsList">
+                    <!-- Achievements will be populated here -->
+                </div>
+            </div>
+        </div>
+
         <!-- Focus Mode Overlay -->
         <div class="focus-overlay" id="focusOverlay">
             <button class="focus-exit" id="focusExitBtn">Exit Focus</button>
@@ -162,7 +857,7 @@
         <div class="settings-panel" id="settingsPanel">
             <div class="settings-header">
                 <h3>Settings</h3>
-                <button class="btn" id="closeSettingsBtn">✕</button>
+                <button class="btn close-btn" id="closeSettingsBtn">✕</button>
             </div>
             <div class="settings-content">
                 <div class="setting-group">
@@ -226,64 +921,11 @@
     <script src="js/modules/UIModule.js"></script>
     <script src="js/modules/AudioModule.js"></script>
     <script src="js/modules/AuthModule.js"></script>
+    
     <!-- Main Application -->
     <script src="js/StudySyncApp.js"></script>
+    
     <!-- App Initialization -->
     <script src="js/main.js"></script>
-    
-    <!-- Temporary Debug Script -->
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('DOM loaded - setting up chat');
-            
-            const chatToggleBtn = document.getElementById('chatToggleBtn');
-            const chatSidebar = document.getElementById('chatSidebar');
-            const chatOverlay = document.getElementById('chatOverlay');
-            const chatCloseBtn = document.getElementById('chatCloseBtn');
-            
-            // Make sure chat button is visible
-            if (chatToggleBtn) {
-                chatToggleBtn.style.display = 'inline-flex';
-                console.log('Chat button is visible');
-                
-                // Open chat when clicked
-                chatToggleBtn.addEventListener('click', function() {
-                    console.log('Opening chat...');
-                    if (chatSidebar) {
-                        chatSidebar.classList.add('open');
-                        console.log('Added open class to sidebar');
-                    }
-                    if (chatOverlay) {
-                        chatOverlay.classList.add('active');
-                        console.log('Added active class to overlay');
-                    }
-                });
-            }
-            
-            // Close chat when X is clicked
-            if (chatCloseBtn) {
-                chatCloseBtn.addEventListener('click', function() {
-                    console.log('Closing chat...');
-                    if (chatSidebar) {
-                        chatSidebar.classList.remove('open');
-                    }
-                    if (chatOverlay) {
-                        chatOverlay.classList.remove('active');
-                    }
-                });
-            }
-            
-            // Close chat when overlay is clicked
-            if (chatOverlay) {
-                chatOverlay.addEventListener('click', function() {
-                    console.log('Closing chat via overlay...');
-                    if (chatSidebar) {
-                        chatSidebar.classList.remove('open');
-                    }
-                    chatOverlay.classList.remove('active');
-                });
-            }
-        });
-    </script>
 </body>
 </html>

@@ -1,6 +1,6 @@
- 
 /**
- * StudySyncApp - Main application orchestrator
+ * StudySyncApp - Complete Main application orchestrator with authentication
+ * File: js/StudySyncApp.js
  */
 
 class StudySyncApp {
@@ -8,6 +8,7 @@ class StudySyncApp {
         // Initialize modules
         this.timer = new TimerModule();
         this.firebase = new FirebaseModule();
+        this.auth = new AuthModule();
         this.stats = new StatsModule();
         this.settings = new SettingsModule();
         this.ui = new UIModule();
@@ -31,7 +32,6 @@ class StudySyncApp {
 
     /**
      * Initialize the application
-     * @returns {Promise<void>}
      */
     async initialize() {
         try {
@@ -43,6 +43,14 @@ class StudySyncApp {
                 console.warn('Firebase initialization failed, continuing in offline mode');
             }
             
+            // Initialize Auth module
+            if (firebaseSuccess) {
+                const authSuccess = await this.auth.initialize();
+                if (!authSuccess) {
+                    console.warn('Auth initialization failed, continuing without authentication');
+                }
+            }
+            
             // Initialize audio on user interaction
             document.addEventListener('click', async () => {
                 if (!this.audio.audioContext) {
@@ -52,6 +60,7 @@ class StudySyncApp {
             
             // Setup all event listeners
             this._setupEventListeners();
+            this._setupAuthEventListeners();
             
             // Initialize UI with current data
             this._initializeUI();
@@ -77,15 +86,269 @@ class StudySyncApp {
     }
 
     /**
+     * Setup authentication event listeners
+     */
+    _setupAuthEventListeners() {
+        // Auth module events
+        this.auth.on('initialized', () => {
+            console.log('Auth module initialized');
+            this.ui.updateAuthState(this.auth.getAuthStatus());
+        });
+
+        this.auth.on('authStateChanged', (data) => {
+            console.log('Auth state changed:', data.isAuthenticated);
+            this.ui.updateAuthState(this.auth.getAuthStatus());
+            
+            if (data.isAuthenticated) {
+                this.ui.showToast(`Welcome back, ${data.user.displayName}! 👋`, 'success');
+                this._syncWithAuth();
+            } else {
+                this.ui.showToast('Signed out successfully 👋');
+                this._resetLocalData();
+            }
+        });
+
+        this.auth.on('signInSuccess', (data) => {
+            this.ui.showToast(`Signed in as ${data.user.displayName} ✅`, 'success');
+        });
+
+        this.auth.on('userDataLoaded', (userData) => {
+            console.log('User data loaded:', userData);
+            this._updateStatsFromAuth(userData.progress);
+            this.ui.updateUserProfile(userData.profile);
+            this.ui.updateAchievements(userData.achievements);
+            this.ui.updateLevelAndExperience(userData.progress);
+        });
+
+        this.auth.on('progressUpdated', (progress) => {
+            console.log('Progress updated:', progress);
+            const transformedStats = this._transformProgressToStats(progress);
+            this.ui.updateStatsEnhanced(transformedStats);
+            this.ui.updateLevelAndExperience(progress);
+        });
+
+        this.auth.on('achievementsUnlocked', (achievements) => {
+            achievements.forEach(achievement => {
+                this.ui.showToast(`🏆 Achievement Unlocked: ${achievement.title}!`, 'success', 5000);
+                this.ui.showAchievementUnlock(achievement);
+            });
+            this.ui.updateAchievements(this.auth.getUserAchievements());
+        });
+
+        this.auth.on('authError', (error) => {
+            this.ui.showToast(`Sign-in failed: ${error.message}`, 'error');
+        });
+
+        this.auth.on('onlineStatusChanged', (status) => {
+            if (status.online) {
+                this.ui.showToast('Back online - syncing data... 🌐', 'info');
+            } else {
+                this.ui.showToast('Offline mode - data will sync when reconnected 📱', 'warning');
+            }
+            this.ui.updateSyncStatus(status.online, 0);
+        });
+
+        this.auth.on('dataSynced', () => {
+            this.ui.showToast('Data synced to cloud ☁️', 'success', 2000);
+            this.ui.updateSyncStatus(true, 0);
+        });
+
+        // UI events for auth
+        this.ui.on('signInGoogle', () => this._handleSignIn());
+        this.ui.on('signOut', () => this._handleSignOut());
+        this.ui.on('exportData', () => this._handleExportData());
+        this.ui.on('viewAchievements', () => this.ui.toggleAchievementsPanel());
+    }
+
+    /**
+     * Handle Google sign-in
+     */
+    async _handleSignIn() {
+        if (!this.auth.isInitialized) {
+            this.ui.showToast('Please wait, initializing...', 'warning');
+            return;
+        }
+
+        this.ui.showToast('Opening sign-in window...', 'info');
+        const success = await this.auth.signInWithGoogle();
+        
+        if (!success) {
+            this.ui.showToast('Sign-in was cancelled or failed', 'error');
+        }
+    }
+
+    /**
+     * Handle sign-out
+     */
+    async _handleSignOut() {
+        const success = await this.auth.signOut();
+        if (!success) {
+            this.ui.showToast('Sign-out failed. Please try again.', 'error');
+        }
+    }
+
+    /**
+     * Handle data export
+     */
+    _handleExportData() {
+        if (!this.auth.isAuthenticated) {
+            this.ui.showToast('Please sign in to export data', 'warning');
+            return;
+        }
+
+        try {
+            const userData = this.auth.exportUserData();
+            const filename = `studysync-data-${new Date().toISOString().split('T')[0]}.json`;
+            const blob = new Blob([JSON.stringify(userData, null, 2)], {
+                type: 'application/json'
+            });
+            
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            this.ui.showToast('Data exported successfully! 📄', 'success');
+            this.ui.showExportSuccess(filename);
+        } catch (error) {
+            console.error('Export failed:', error);
+            this.ui.showToast('Export failed. Please try again.', 'error');
+        }
+    }
+
+    /**
+     * Sync local stats with auth module
+     */
+    async _syncWithAuth() {
+        if (!this.auth.isAuthenticated) return;
+        
+        const localStats = this.stats.getStats();
+        
+        await this.auth.updateProgress({
+            sessionsCompleted: localStats.sessions,
+            totalFocusTime: localStats.focusTimeSeconds,
+            currentStreak: localStats.streak
+        });
+    }
+
+    /**
+     * Update local stats from auth data
+     */
+    _updateStatsFromAuth(authProgress) {
+        this.stats.importData({
+            todayStats: {
+                sessions: authProgress.sessionsCompleted || 0,
+                focusTime: authProgress.totalFocusTime || 0,
+                streak: authProgress.currentStreak || 0
+            },
+            allTimeStats: {
+                totalSessions: authProgress.sessionsCompleted || 0,
+                totalFocusTime: authProgress.totalFocusTime || 0,
+                longestStreak: authProgress.longestStreak || 0
+            }
+        });
+    }
+
+    /**
+     * Transform progress data to stats format
+     */
+    _transformProgressToStats(progress) {
+        return {
+            sessions: progress.sessionsCompleted || 0,
+            focusTime: Math.round((progress.totalFocusTime || 0) / 3600 * 10) / 10,
+            focusTimeSeconds: progress.totalFocusTime || 0,
+            streak: progress.currentStreak || 0,
+            productivityScore: progress.productivityScore || 0,
+            level: progress.level || 1,
+            experience: progress.experience || 0
+        };
+    }
+
+    /**
+     * Reset local data on sign out
+     */
+    _resetLocalData() {
+        this.ui.updateUserProfile(null);
+        this.ui.updateAchievements([]);
+        this.ui.updateAuthState({ isAuthenticated: false, user: null });
+    }
+
+    /**
+     * Handle timer completion with auth integration
+     */
+    async _handleTimerComplete(mode) {
+        this.ui.updateControls(false, false);
+        
+        if (mode === 'focus') {
+            await this.audio.playSuccess();
+            this.ui.showToast('Focus session complete! Great work! 🎉', 'success');
+            this.stats.endSession(mode, true);
+            
+            // Sync with auth module if signed in
+            if (this.auth.isAuthenticated) {
+                await this.auth.addSession({
+                    mode,
+                    duration: this.timer.duration,
+                    completed: true,
+                    date: new Date().toDateString(),
+                    timestamp: Date.now()
+                });
+            }
+            
+            if (this.settings.get('autoBreak')) {
+                setTimeout(() => {
+                    this.timer.setMode('short-break', 300);
+                    this.timer.start();
+                }, 2000);
+            }
+        } else {
+            await this.audio.playCompletion();
+            this.ui.showToast('Break time over! Ready to focus again? 💪', 'info');
+            this.stats.endSession(mode, true);
+            
+            // Sync break session with auth module if signed in
+            if (this.auth.isAuthenticated) {
+                await this.auth.addSession({
+                    mode,
+                    duration: this.timer.duration,
+                    completed: true,
+                    date: new Date().toDateString(),
+                    timestamp: Date.now()
+                });
+            }
+            
+            if (this.settings.get('autoFocus')) {
+                setTimeout(() => {
+                    this.timer.setMode('focus', this.settings.get('customDuration') * 60);
+                    this.timer.start();
+                }, 2000);
+            }
+        }
+
+        if (this.settings.get('notifications')) {
+            this._showNotification(mode);
+        }
+
+        if (this.roomId) {
+            const message = mode === 'focus' ? 
+                'Focus session completed! 🎯' : 
+                'Break time finished! 💪';
+            this.ui.addChatMessage(message, false, 'System');
+        }
+    }
+
+    /**
      * Setup all event listeners between modules
-     * @private
      */
     _setupEventListeners() {
         // Timer events
         this.timer.on('tick', (data) => {
             this.ui.updateTimer(data.timeLeft, data.duration);
             
-            // Update Firebase if host
             if (this.isHost && this.firebase.isInRoom()) {
                 this.firebase.updateTimer(this.timer.getState());
             }
@@ -224,7 +487,6 @@ class StudySyncApp {
 
     /**
      * Initialize UI with current data
-     * @private
      */
     _initializeUI() {
         this.ui.updateSettings(this.settings.getAll());
@@ -233,60 +495,11 @@ class StudySyncApp {
         this.ui.updateMode(this.timer.currentMode);
         this.ui.updateControls(this.timer.isRunning, this.timer.isPaused);
         this.ui.updateParticipants(1, false);
-    }
-
-    /**
-     * Handle timer completion
-     * @param {string} mode - Completed timer mode
-     * @private
-     */
-    async _handleTimerComplete(mode) {
-        this.ui.updateControls(false, false);
-        
-        // Play completion sound
-        if (mode === 'focus') {
-            await this.audio.playSuccess();
-            this.ui.showToast('Focus session complete! Great work! 🎉', 'success');
-            this.stats.endSession(mode, true);
-            
-            // Auto-start break if enabled
-            if (this.settings.get('autoBreak')) {
-                setTimeout(() => {
-                    this.timer.setMode('short-break', 300);
-                    this.timer.start();
-                }, 2000);
-            }
-        } else {
-            await this.audio.playCompletion();
-            this.ui.showToast('Break time over! Ready to focus again? 💪', 'info');
-            this.stats.endSession(mode, true);
-            
-            // Auto-start focus if enabled
-            if (this.settings.get('autoFocus')) {
-                setTimeout(() => {
-                    this.timer.setMode('focus', this.settings.get('customDuration') * 60);
-                    this.timer.start();
-                }, 2000);
-            }
-        }
-
-        // Show browser notification
-        if (this.settings.get('notifications')) {
-            this._showNotification(mode);
-        }
-
-        // Add system message in room
-        if (this.roomId) {
-            const message = mode === 'focus' ? 
-                'Focus session completed! 🎯' : 
-                'Break time finished! 💪';
-            this.ui.addChatMessage(message, false, 'System');
-        }
+        this.ui.updateAuthState(this.auth.getAuthStatus());
     }
 
     /**
      * Create a new room
-     * @private
      */
     async _createRoom() {
         if (!this.firebase.isInitialized) {
@@ -309,7 +522,6 @@ class StudySyncApp {
         });
 
         if (success) {
-            // Update URL
             const url = new URL(window.location);
             url.searchParams.set('room', roomId);
             window.history.pushState({}, '', url);
@@ -318,7 +530,6 @@ class StudySyncApp {
 
     /**
      * Join an existing room
-     * @private
      */
     async _joinRoom() {
         if (!this.firebase.isInitialized) {
@@ -336,7 +547,6 @@ class StudySyncApp {
         });
 
         if (success) {
-            // Update URL
             const url = new URL(window.location);
             url.searchParams.set('room', roomId);
             window.history.pushState({}, '', url);
@@ -345,7 +555,6 @@ class StudySyncApp {
 
     /**
      * Copy room URL to clipboard
-     * @private
      */
     _copyRoomUrl() {
         if (!this.roomId) return;
@@ -362,8 +571,6 @@ class StudySyncApp {
 
     /**
      * Send chat message
-     * @param {string} message - Message to send
-     * @private
      */
     async _sendMessage(message) {
         if (!this.roomId || !message.trim()) return;
@@ -379,8 +586,6 @@ class StudySyncApp {
 
     /**
      * Update participants list
-     * @param {object} participants - Participants data from Firebase
-     * @private
      */
     _updateParticipants(participants) {
         this.participants.clear();
@@ -391,7 +596,6 @@ class StudySyncApp {
         
         this.ui.updateParticipants(this.participants.size, this.isHost);
         
-        // Check if we should become host
         if (!this.isHost && !this._hasActiveHost()) {
             this._becomeHost();
         }
@@ -399,8 +603,6 @@ class StudySyncApp {
 
     /**
      * Check if there's an active host
-     * @returns {boolean} Has active host
-     * @private
      */
     _hasActiveHost() {
         for (const participant of this.participants.values()) {
@@ -411,14 +613,12 @@ class StudySyncApp {
 
     /**
      * Become the room host
-     * @private
      */
     async _becomeHost() {
         this.isHost = true;
         this.ui.updateParticipants(this.participants.size, true);
         this.ui.showToast('You are now the host! 👑', 'info');
 
-        // Update Firebase
         if (this.firebase.isInRoom()) {
             await this.firebase.updateHost(this.userId);
         }
@@ -426,7 +626,6 @@ class StudySyncApp {
 
     /**
      * Check for room in URL parameters
-     * @private
      */
     _checkForRoomInUrl() {
         const urlParams = new URLSearchParams(window.location.search);
@@ -444,9 +643,6 @@ class StudySyncApp {
 
     /**
      * Apply setting changes
-     * @param {string} key - Setting key
-     * @param {*} value - Setting value
-     * @private
      */
     _applySettingChange(key, value) {
         switch (key) {
@@ -463,7 +659,6 @@ class StudySyncApp {
                 break;
                 
             case 'customDuration':
-                // Update custom mode if currently selected
                 if (this.timer.currentMode === 'custom') {
                     this.timer.setMode('custom', value * 60);
                 }
@@ -473,8 +668,6 @@ class StudySyncApp {
 
     /**
      * Show browser notification
-     * @param {string} mode - Timer mode that completed
-     * @private
      */
     _showNotification(mode) {
         if ('Notification' in window && Notification.permission === 'granted') {
@@ -496,7 +689,6 @@ class StudySyncApp {
 
     /**
      * Request notification permission
-     * @private
      */
     async _requestNotificationPermission() {
         if ('Notification' in window && Notification.permission === 'default') {
@@ -507,7 +699,6 @@ class StudySyncApp {
 
     /**
      * Start heartbeat for presence
-     * @private
      */
     _startHeartbeat() {
         if (this.heartbeatInterval) return;
@@ -521,7 +712,6 @@ class StudySyncApp {
 
     /**
      * Stop heartbeat
-     * @private
      */
     _stopHeartbeat() {
         if (this.heartbeatInterval) {
@@ -532,26 +722,19 @@ class StudySyncApp {
 
     /**
      * Setup app lifecycle handlers
-     * @private
      */
     _setupLifecycleHandlers() {
-        // Handle visibility changes
         document.addEventListener('visibilitychange', this._handleVisibilityChange);
-        
-        // Handle page unload
         window.addEventListener('beforeunload', this._handleBeforeUnload);
     }
 
     /**
      * Handle page visibility changes
-     * @private
      */
     _handleVisibilityChange() {
         if (document.hidden) {
-            // Page is hidden - pause non-essential operations
             this._stopHeartbeat();
         } else {
-            // Page is visible - resume operations
             if (this.firebase.isInRoom()) {
                 this._startHeartbeat();
             }
@@ -560,7 +743,6 @@ class StudySyncApp {
 
     /**
      * Handle page unload
-     * @private
      */
     _handleBeforeUnload() {
         this.cleanup();
@@ -568,8 +750,6 @@ class StudySyncApp {
 
     /**
      * Generate unique user ID
-     * @returns {string} User ID
-     * @private
      */
     _generateUserId() {
         return 'user-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5);
@@ -577,8 +757,6 @@ class StudySyncApp {
 
     /**
      * Generate room ID
-     * @returns {string} Room ID
-     * @private
      */
     _generateRoomId() {
         return Math.random().toString(36).substring(2, 8).toLowerCase();
@@ -586,7 +764,6 @@ class StudySyncApp {
 
     /**
      * Get app status information
-     * @returns {object} App status
      */
     getStatus() {
         return {
@@ -596,7 +773,8 @@ class StudySyncApp {
             participantCount: this.participants.size,
             timerState: this.timer.getState(),
             firebaseConnected: this.firebase.getConnectionStatus(),
-            audioEnabled: this.audio.getSettings().enabled
+            audioEnabled: this.audio.getSettings().enabled,
+            authStatus: this.auth.getAuthStatus()
         };
     }
 
@@ -608,7 +786,6 @@ class StudySyncApp {
         
         this._stopHeartbeat();
         
-        // Leave room if in one
         if (this.firebase.isInRoom()) {
             this.firebase.leaveRoom(this.userId);
         }
@@ -616,6 +793,7 @@ class StudySyncApp {
         // Cleanup modules
         this.timer.destroy();
         this.firebase.destroy();
+        this.auth.destroy();
         this.stats.destroy();
         this.settings.destroy();
         this.ui.destroy();

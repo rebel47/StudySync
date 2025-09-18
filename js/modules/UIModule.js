@@ -1,5 +1,6 @@
 /**
- * UIModule - User interface management and DOM interactions
+ * Complete UIModule - User interface management with authentication
+ * File: js/modules/UIModule.js
  */
 
 class UIModule extends EventEmitter {
@@ -10,7 +11,9 @@ class UIModule extends EventEmitter {
         this.state = {
             focusMode: false,
             settingsOpen: false,
-            chatOpen: false
+            chatOpen: false,
+            profileOpen: false,
+            achievementsOpen: false
         };
         
         this.initializeElements();
@@ -56,10 +59,14 @@ class UIModule extends EventEmitter {
         this.elements.connectionStatus = document.getElementById('connectionStatus');
         
         // Chat elements
-        this.elements.chatCard = document.getElementById('chatCard');
+        this.elements.chatToggleBtn = document.getElementById('chatToggleBtn');
+        this.elements.chatSidebar = document.getElementById('chatSidebar');
+        this.elements.chatOverlay = document.getElementById('chatOverlay');
+        this.elements.chatCloseBtn = document.getElementById('chatCloseBtn');
         this.elements.chatMessages = document.getElementById('chatMessages');
         this.elements.chatInput = document.getElementById('chatInput');
         this.elements.sendBtn = document.getElementById('sendBtn');
+        this.elements.chatNotification = document.getElementById('chatNotification');
         
         // Focus mode elements
         this.elements.focusBtn = document.getElementById('focusBtn');
@@ -70,13 +77,43 @@ class UIModule extends EventEmitter {
         this.elements.settingsBtn = document.getElementById('settingsBtn');
         this.elements.settingsPanel = document.getElementById('settingsPanel');
         this.elements.closeSettingsBtn = document.getElementById('closeSettingsBtn');
-        
-        // Settings controls
         this.elements.soundToggle = document.getElementById('soundToggle');
         this.elements.autoBreakToggle = document.getElementById('autoBreakToggle');
         this.elements.notificationToggle = document.getElementById('notificationToggle');
         this.elements.customDurationInput = document.getElementById('customDurationInput');
         this.elements.userNameInput = document.getElementById('userNameInput');
+        
+        // Auth elements
+        this.elements.googleSignInBtn = document.getElementById('googleSignInBtn');
+        this.elements.googleSignOutBtn = document.getElementById('googleSignOutBtn');
+        this.elements.userProfile = document.getElementById('userProfile');
+        this.elements.userNameDisplay = document.getElementById('userNameDisplay');
+        this.elements.userAvatar = document.getElementById('userAvatar');
+        this.elements.syncStatus = document.getElementById('syncStatus');
+        this.elements.exportDataBtn = document.getElementById('exportDataBtn');
+        this.elements.profileCard = document.getElementById('profileCard');
+        
+        // Level and Achievement elements
+        this.elements.levelDisplay = document.getElementById('levelDisplay');
+        this.elements.currentLevel = document.getElementById('currentLevel');
+        this.elements.experienceBar = document.getElementById('experienceBar');
+        this.elements.experienceText = document.getElementById('experienceText');
+        this.elements.totalExperience = document.getElementById('totalExperience');
+        this.elements.achievementsList = document.getElementById('achievementsList');
+        this.elements.achievementsCount = document.getElementById('achievementsCount');
+        this.elements.achievementsPreview = document.getElementById('achievementsPreview');
+        this.elements.viewAchievementsBtn = document.getElementById('viewAchievementsBtn');
+        this.elements.achievementsPanel = document.getElementById('achievementsPanel');
+        this.elements.profilePanel = document.getElementById('profilePanel');
+        this.elements.closeProfileBtn = document.getElementById('closeProfileBtn');
+        
+        // Profile elements
+        this.elements.profileName = document.getElementById('profileName');
+        this.elements.profileEmail = document.getElementById('profileEmail');
+        this.elements.profileAvatar = document.getElementById('profileAvatar');
+        this.elements.memberSince = document.getElementById('memberSince');
+        this.elements.lastLogin = document.getElementById('lastLogin');
+        this.elements.signOutFromProfile = document.getElementById('signOutFromProfile');
         
         // Toast element
         this.elements.toast = document.getElementById('toast');
@@ -118,15 +155,9 @@ class UIModule extends EventEmitter {
         this._addEventListener('chatInput', 'keypress', (e) => {
             if (e.key === 'Enter') this._sendChatMessage();
         });
-
-        // Chat sidebar open/close logic
-        this._addEventListener('chatToggleBtn', 'click', () => {
-            this.state.chatOpen = true;
-            this._clearChatNotification();
-        });
-        this._addEventListener('chatCloseBtn', 'click', () => {
-            this.state.chatOpen = false;
-        });
+        this._addEventListener('chatToggleBtn', 'click', () => this._openChat());
+        this._addEventListener('chatCloseBtn', 'click', () => this._closeChat());
+        this._addEventListener('chatOverlay', 'click', () => this._closeChat());
         
         // Focus mode
         this._addEventListener('focusBtn', 'click', () => this.toggleFocusMode());
@@ -135,13 +166,9 @@ class UIModule extends EventEmitter {
         // Settings
         this._addEventListener('settingsBtn', 'click', () => this.toggleSettings());
         this._addEventListener('closeSettingsBtn', 'click', () => this.closeSettings());
-        
-        // Settings toggles
         this._addEventListener('soundToggle', 'click', () => this._toggleSetting('soundEnabled'));
         this._addEventListener('autoBreakToggle', 'click', () => this._toggleSetting('autoBreak'));
         this._addEventListener('notificationToggle', 'click', () => this._toggleSetting('notifications'));
-        
-        // Settings inputs
         this._addEventListener('customDurationInput', 'change', (e) => {
             this.emit('settingChange', { key: 'customDuration', value: parseInt(e.target.value) });
         });
@@ -149,17 +176,31 @@ class UIModule extends EventEmitter {
             this.emit('settingChange', { key: 'userName', value: e.target.value });
         });
         
+        // Auth events
+        this._addEventListener('googleSignInBtn', 'click', () => this.emit('signInGoogle'));
+        this._addEventListener('googleSignOutBtn', 'click', () => this.emit('signOut'));
+        this._addEventListener('signOutFromProfile', 'click', () => this.emit('signOut'));
+        this._addEventListener('exportDataBtn', 'click', () => this.emit('exportData'));
+        this._addEventListener('userProfile', 'click', () => this.toggleProfilePanel());
+        this._addEventListener('closeProfileBtn', 'click', () => this.closeProfilePanel());
+        this._addEventListener('viewAchievementsBtn', 'click', () => this.toggleAchievementsPanel());
+        
+        // Achievements panel
+        if (this.elements.achievementsPanel) {
+            this.elements.achievementsPanel.addEventListener('click', (e) => {
+                if (e.target.classList.contains('close-btn')) {
+                    this.closeAchievementsPanel();
+                }
+            });
+        }
+        
         // Global keyboard shortcuts
         document.addEventListener('keydown', (e) => this._handleKeyboardShortcuts(e));
-        
-        // Click outside to close panels
         document.addEventListener('click', (e) => this._handleOutsideClick(e));
     }
 
     /**
      * Update timer display
-     * @param {number} timeLeft - Time left in seconds
-     * @param {number} duration - Total duration in seconds
      */
     updateTimer(timeLeft, duration) {
         const display = this._formatTime(timeLeft);
@@ -172,7 +213,6 @@ class UIModule extends EventEmitter {
 
     /**
      * Update mode display
-     * @param {string} mode - Current mode
      */
     updateMode(mode) {
         const modeNames = {
@@ -186,7 +226,6 @@ class UIModule extends EventEmitter {
         this._setElementText('modeDisplay', displayName);
         this._setElementText('focusModeDisplay', displayName);
         
-        // Update active mode button
         this.elements.modeButtons?.forEach(btn => {
             btn.classList.toggle('active', btn.dataset.mode === mode);
         });
@@ -194,8 +233,6 @@ class UIModule extends EventEmitter {
 
     /**
      * Update control buttons state
-     * @param {boolean} isRunning - Timer running state
-     * @param {boolean} isPaused - Timer paused state
      */
     updateControls(isRunning, isPaused) {
         if (this.elements.startBtn) {
@@ -214,7 +251,6 @@ class UIModule extends EventEmitter {
 
     /**
      * Update statistics display
-     * @param {object} stats - Statistics object
      */
     updateStats(stats) {
         this._setElementText('sessionsCompleted', stats.sessions);
@@ -224,9 +260,57 @@ class UIModule extends EventEmitter {
     }
 
     /**
+     * Enhanced stats update to include level and experience
+     */
+    updateStatsEnhanced(stats) {
+        this.updateStats(stats);
+        
+        if (stats.level !== undefined || stats.experience !== undefined) {
+            this.updateLevelAndExperience(stats);
+        }
+    }
+
+    /**
+     * Update level and experience display
+     */
+    updateLevelAndExperience(progress) {
+        if (progress.level !== undefined) {
+            this._setElementText('levelDisplay', `Level ${progress.level}`);
+            this._setElementText('currentLevel', progress.level.toString());
+        }
+        
+        if (progress.experience !== undefined && this.elements.experienceBar) {
+            const level = progress.level || 1;
+            const baseXP = this.calculateLevelXP(level - 1);
+            const nextLevelXP = this.calculateLevelXP(level);
+            const currentLevelXP = progress.experience - baseXP;
+            const requiredXP = nextLevelXP - baseXP;
+            
+            const percentage = Math.min(100, (currentLevelXP / requiredXP) * 100);
+            
+            const progressBar = this.elements.experienceBar.querySelector('.experience-progress');
+            if (progressBar) {
+                progressBar.style.width = `${percentage}%`;
+            }
+            
+            this._setElementText('experienceText', `${currentLevelXP}/${requiredXP} XP`);
+            this._setElementText('totalExperience', `${progress.experience} Total XP`);
+        }
+    }
+
+    /**
+     * Calculate XP required for a specific level
+     */
+    calculateLevelXP(level) {
+        let totalXP = 0;
+        for (let i = 1; i <= level; i++) {
+            totalXP += 100 + (i - 1) * 50;
+        }
+        return totalXP;
+    }
+
+    /**
      * Update participant count and status
-     * @param {number} count - Number of participants
-     * @param {boolean} isHost - Whether user is host
      */
     updateParticipants(count, isHost = false) {
         const text = count === 1 ? '1 student' : `${count} students`;
@@ -234,7 +318,6 @@ class UIModule extends EventEmitter {
         
         this._setElementText('participantCount', text + hostText);
         
-        // Update connection status indicator
         if (this.elements.connectionStatus) {
             this.elements.connectionStatus.style.background = count > 1 ? '#10b981' : '#7dd3fc';
         }
@@ -242,62 +325,257 @@ class UIModule extends EventEmitter {
 
     /**
      * Update room information
-     * @param {string} roomId - Room ID
-     * @param {boolean} isHost - Whether user is host
      */
     updateRoom(roomId, isHost = false) {
         this._setElementText('roomCode', roomId || 'Solo');
         
         if (roomId) {
-            // Show the chat section and room URL group
-            const chatSection = document.getElementById('chatSection');
-            const roomUrlGroup = document.getElementById('roomUrlGroup');
-            
-            if (chatSection) {
-                chatSection.style.display = 'block';
-            }
-            if (roomUrlGroup) {
-                roomUrlGroup.style.display = 'block';
-            }
+            this._showElement('chatToggleBtn');
+            this._showElement('roomUrlGroup');
             
             const url = new URL(window.location);
             url.searchParams.set('room', roomId);
             this._setElementValue('roomUrl', url.toString());
         } else {
-            // Hide chat section and room URL group
-            const chatSection = document.getElementById('chatSection');
-            const roomUrlGroup = document.getElementById('roomUrlGroup');
+            this._hideElement('chatToggleBtn');
+            this._hideElement('roomUrlGroup');
+        }
+    }
+
+    /**
+     * Update authentication state in UI
+     */
+    updateAuthState(authStatus) {
+        const { isAuthenticated, user, isOnline, syncQueueLength } = authStatus;
+        
+        if (isAuthenticated && user) {
+            this._hideElement('googleSignInBtn');
+            this._showElement('googleSignOutBtn');
+            this._showElement('userProfile');
+            this._showElement('profileCard');
             
-            if (chatSection) {
-                chatSection.style.display = 'none';
+            this._setElementText('userNameDisplay', user.displayName || 'User');
+            
+            if (user.photoURL && this.elements.userAvatar) {
+                this.elements.userAvatar.src = user.photoURL;
+                this.elements.userAvatar.style.display = 'block';
             }
-            if (roomUrlGroup) {
-                roomUrlGroup.style.display = 'none';
+            
+            this.updateSyncStatus(isOnline, syncQueueLength);
+        } else {
+            this._showElement('googleSignInBtn');
+            this._hideElement('googleSignOutBtn');
+            this._hideElement('userProfile');
+            this._hideElement('profileCard');
+            
+            this._setElementText('userNameDisplay', '');
+            
+            if (this.elements.userAvatar) {
+                this.elements.userAvatar.style.display = 'none';
             }
         }
     }
 
     /**
+     * Update user profile information
+     */
+    updateUserProfile(profile) {
+        if (!profile) {
+            this._hideElement('profileCard');
+            return;
+        }
+        
+        this._showElement('profileCard');
+        
+        this._setElementText('profileName', profile.displayName);
+        this._setElementText('profileEmail', profile.email);
+        
+        if (profile.photoURL && this.elements.profileAvatar) {
+            this.elements.profileAvatar.src = profile.photoURL;
+        }
+        
+        if (profile.createdAt) {
+            const createdDate = new Date(profile.createdAt).toLocaleDateString();
+            this._setElementText('memberSince', `Member since ${createdDate}`);
+        }
+        
+        if (profile.lastLoginAt) {
+            const lastLogin = new Date(profile.lastLoginAt).toLocaleDateString();
+            this._setElementText('lastLogin', `Last login: ${lastLogin}`);
+        }
+    }
+
+    /**
+     * Update sync status indicator
+     */
+    updateSyncStatus(isOnline, queueLength = 0) {
+        if (!this.elements.syncStatus) return;
+        
+        if (isOnline) {
+            if (queueLength > 0) {
+                this.elements.syncStatus.className = 'sync-status syncing';
+                this.elements.syncStatus.textContent = `Syncing ${queueLength} items...`;
+            } else {
+                this.elements.syncStatus.className = 'sync-status synced';
+                this.elements.syncStatus.textContent = 'Synced';
+            }
+        } else {
+            this.elements.syncStatus.className = 'sync-status offline';
+            this.elements.syncStatus.textContent = queueLength > 0 ? 
+                `Offline (${queueLength} pending)` : 'Offline';
+        }
+    }
+
+    /**
+     * Update user achievements
+     */
+    updateAchievements(achievements) {
+        if (!this.elements.achievementsList) return;
+        
+        this.elements.achievementsList.innerHTML = '';
+        
+        if (achievements.length === 0) {
+            this.elements.achievementsList.innerHTML = `
+                <div class="no-achievements">
+                    <div class="achievement-icon">🏆</div>
+                    <p>No achievements yet</p>
+                    <small>Complete focus sessions to unlock achievements!</small>
+                </div>
+            `;
+            this._setElementText('achievementsCount', '0');
+            return;
+        }
+        
+        achievements.forEach(achievement => {
+            const achievementEl = document.createElement('div');
+            achievementEl.className = 'achievement-item';
+            achievementEl.innerHTML = `
+                <div class="achievement-icon">${achievement.icon}</div>
+                <div class="achievement-content">
+                    <h4 class="achievement-title">${achievement.title}</h4>
+                    <p class="achievement-description">${achievement.description}</p>
+                    <small class="achievement-date">
+                        Unlocked ${new Date(achievement.unlockedAt).toLocaleDateString()}
+                    </small>
+                </div>
+            `;
+            this.elements.achievementsList.appendChild(achievementEl);
+        });
+        
+        this._setElementText('achievementsCount', achievements.length.toString());
+        
+        // Update preview
+        if (this.elements.achievementsPreview) {
+            this.elements.achievementsPreview.innerHTML = '';
+            achievements.slice(0, 3).forEach(achievement => {
+                const previewEl = document.createElement('div');
+                previewEl.className = 'achievement-preview-item';
+                previewEl.textContent = achievement.icon;
+                previewEl.title = achievement.title;
+                this.elements.achievementsPreview.appendChild(previewEl);
+            });
+        }
+    }
+
+    /**
+     * Show achievement unlock animation
+     */
+    showAchievementUnlock(achievement) {
+        const achievementNotification = document.createElement('div');
+        achievementNotification.className = 'achievement-notification';
+        achievementNotification.innerHTML = `
+            <div class="achievement-popup">
+                <div class="achievement-header">
+                    <span class="achievement-unlock-icon">🏆</span>
+                    <span class="achievement-unlock-text">Achievement Unlocked!</span>
+                </div>
+                <div class="achievement-details">
+                    <span class="achievement-icon-large">${achievement.icon}</span>
+                    <div>
+                        <h3>${achievement.title}</h3>
+                        <p>${achievement.description}</p>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(achievementNotification);
+        
+        setTimeout(() => {
+            achievementNotification.classList.add('show');
+        }, 100);
+        
+        setTimeout(() => {
+            achievementNotification.classList.remove('show');
+            setTimeout(() => {
+                if (achievementNotification.parentNode) {
+                    achievementNotification.parentNode.removeChild(achievementNotification);
+                }
+            }, 300);
+        }, 5000);
+        
+        achievementNotification.addEventListener('click', () => {
+            achievementNotification.classList.remove('show');
+            setTimeout(() => {
+                if (achievementNotification.parentNode) {
+                    achievementNotification.parentNode.removeChild(achievementNotification);
+                }
+            }, 300);
+        });
+    }
+
+    /**
+     * Show data export success message
+     */
+    showExportSuccess(filename) {
+        const exportSuccess = document.createElement('div');
+        exportSuccess.className = 'export-success-notification';
+        exportSuccess.innerHTML = `
+            <div class="export-popup">
+                <div class="export-icon">📄</div>
+                <div class="export-content">
+                    <h3>Data Exported Successfully!</h3>
+                    <p>Your data has been saved as:</p>
+                    <code>${filename}</code>
+                    <small>You can import this file to restore your progress</small>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(exportSuccess);
+        
+        setTimeout(() => {
+            exportSuccess.classList.add('show');
+        }, 100);
+        
+        setTimeout(() => {
+            exportSuccess.classList.remove('show');
+            setTimeout(() => {
+                if (exportSuccess.parentNode) {
+                    exportSuccess.parentNode.removeChild(exportSuccess);
+                }
+            }, 300);
+        }, 4000);
+    }
+
+    /**
      * Add message to chat
-     * @param {string} message - Message text
-     * @param {boolean} isOwn - Whether message is from current user
-     * @param {string} senderName - Sender name
      */
     addChatMessage(message, isOwn = false, senderName = 'Unknown') {
         if (!this.elements.chatMessages) return;
+        
         const messageEl = document.createElement('div');
-        messageEl.className = `message ${isOwn ? 'own' : 'other'}`;
+        messageEl.className = `chat-message ${isOwn ? 'own' : 'other'}`;
         const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        
         messageEl.innerHTML = `
             <div class="message-content">${this._escapeHtml(message)}</div>
             <div class="message-meta">${isOwn ? 'You' : this._escapeHtml(senderName)} • ${time}</div>
         `;
+        
         this.elements.chatMessages.appendChild(messageEl);
         this._scrollToBottom(this.elements.chatMessages);
-        // Auto-scroll animation
-        messageEl.style.animationDelay = '0.1s';
-
-        // Show chat notification if chat is closed and message is not own
+        
         if (!this.state.chatOpen && !isOwn) {
             this._showChatNotification();
         }
@@ -305,24 +583,18 @@ class UIModule extends EventEmitter {
 
     /**
      * Update settings UI
-     * @param {object} settings - Settings object
      */
     updateSettings(settings) {
-        // Update toggle states
         this._updateToggle('soundToggle', settings.soundEnabled);
         this._updateToggle('autoBreakToggle', settings.autoBreak);
         this._updateToggle('notificationToggle', settings.notifications);
         
-        // Update input values
         this._setElementValue('customDurationInput', settings.customDuration);
         this._setElementValue('userNameInput', settings.userName);
     }
 
     /**
      * Show toast notification
-     * @param {string} message - Message to show
-     * @param {string} type - Toast type (info, success, warning, error)
-     * @param {number} duration - Display duration in ms
      */
     showToast(message, type = 'info', duration = 3000) {
         if (!this.elements.toast) return;
@@ -399,8 +671,65 @@ class UIModule extends EventEmitter {
     }
 
     /**
+     * Toggle profile panel
+     */
+    toggleProfilePanel() {
+        if (this.state.profileOpen) {
+            this.closeProfilePanel();
+        } else {
+            this.openProfilePanel();
+        }
+    }
+
+    /**
+     * Open profile panel
+     */
+    openProfilePanel() {
+        this.state.profileOpen = true;
+        this.elements.profilePanel?.classList.add('open');
+        this.emit('profileOpened');
+    }
+
+    /**
+     * Close profile panel
+     */
+    closeProfilePanel() {
+        this.state.profileOpen = false;
+        this.elements.profilePanel?.classList.remove('open');
+        this.emit('profileClosed');
+    }
+
+    /**
+     * Toggle achievements panel
+     */
+    toggleAchievementsPanel() {
+        if (this.state.achievementsOpen) {
+            this.closeAchievementsPanel();
+        } else {
+            this.openAchievementsPanel();
+        }
+    }
+
+    /**
+     * Open achievements panel
+     */
+    openAchievementsPanel() {
+        this.state.achievementsOpen = true;
+        this.elements.achievementsPanel?.classList.add('open');
+        this.emit('achievementsOpened');
+    }
+
+    /**
+     * Close achievements panel
+     */
+    closeAchievementsPanel() {
+        this.state.achievementsOpen = false;
+        this.elements.achievementsPanel?.classList.remove('open');
+        this.emit('achievementsClosed');
+    }
+
+    /**
      * Get custom duration from input
-     * @returns {number} Custom duration in minutes
      */
     getCustomDuration() {
         const value = this.elements.customDurationInput?.value;
@@ -408,10 +737,113 @@ class UIModule extends EventEmitter {
     }
 
     /**
+     * Open chat
+     */
+    _openChat() {
+        this.state.chatOpen = true;
+        this.elements.chatSidebar?.classList.add('open');
+        this.elements.chatOverlay?.classList.add('active');
+        this._clearChatNotification();
+    }
+
+    /**
+     * Close chat
+     */
+    _closeChat() {
+        this.state.chatOpen = false;
+        this.elements.chatSidebar?.classList.remove('open');
+        this.elements.chatOverlay?.classList.remove('active');
+    }
+
+    /**
+     * Show chat notification
+     */
+    _showChatNotification() {
+        if (!this.elements.chatNotification) return;
+        
+        const current = parseInt(this.elements.chatNotification.textContent) || 0;
+        const newCount = current + 1;
+        
+        this.elements.chatNotification.textContent = newCount;
+        this.elements.chatNotification.style.display = 'block';
+        
+        if (this.elements.chatToggleBtn) {
+            this.elements.chatToggleBtn.style.animation = 'pulse 2s infinite';
+        }
+    }
+
+    /**
+     * Clear chat notification
+     */
+    _clearChatNotification() {
+        if (this.elements.chatNotification) {
+            this.elements.chatNotification.style.display = 'none';
+            this.elements.chatNotification.textContent = '0';
+        }
+        
+        if (this.elements.chatToggleBtn) {
+            this.elements.chatToggleBtn.style.animation = '';
+        }
+    }
+
+    /**
+     * Send chat message
+     */
+    _sendChatMessage() {
+        const message = this.elements.chatInput?.value.trim();
+        if (message) {
+            this.emit('sendMessage', { message });
+            this.elements.chatInput.value = '';
+        }
+    }
+
+    /**
+     * Toggle setting and emit event
+     */
+    _toggleSetting(setting) {
+        this.emit('toggleSetting', { setting });
+    }
+
+    /**
+     * Handle keyboard shortcuts
+     */
+    _handleKeyboardShortcuts(e) {
+        if (e.key === 'Escape' && this.state.focusMode) {
+            this.exitFocusMode();
+            return;
+        }
+        
+        if (e.key === ' ' && !e.target.matches('input, textarea')) {
+            e.preventDefault();
+            this.emit('toggleTimer');
+            return;
+        }
+        
+        if (e.key === 'Enter' && e.target === this.elements.chatInput) {
+            this._sendChatMessage();
+            return;
+        }
+    }
+
+    /**
+     * Handle clicks outside panels to close them
+     */
+    _handleOutsideClick(e) {
+        if (this.state.settingsOpen && 
+            !this.elements.settingsPanel?.contains(e.target) &&
+            !this.elements.settingsBtn?.contains(e.target)) {
+            this.closeSettings();
+        }
+        
+        if (this.state.profileOpen && 
+            !this.elements.profilePanel?.contains(e.target) &&
+            !this.elements.userProfile?.contains(e.target)) {
+            this.closeProfilePanel();
+        }
+    }
+
+    /**
      * Set element text content safely
-     * @param {string} elementId - Element ID
-     * @param {string} text - Text to set
-     * @private
      */
     _setElementText(elementId, text) {
         const element = this.elements[elementId];
@@ -420,9 +852,6 @@ class UIModule extends EventEmitter {
 
     /**
      * Set element value safely
-     * @param {string} elementId - Element ID
-     * @param {string} value - Value to set
-     * @private
      */
     _setElementValue(elementId, value) {
         const element = this.elements[elementId];
@@ -431,8 +860,6 @@ class UIModule extends EventEmitter {
 
     /**
      * Show element
-     * @param {string} elementId - Element ID
-     * @private
      */
     _showElement(elementId) {
         const element = this.elements[elementId];
@@ -441,8 +868,6 @@ class UIModule extends EventEmitter {
 
     /**
      * Hide element
-     * @param {string} elementId - Element ID
-     * @private
      */
     _hideElement(elementId) {
         const element = this.elements[elementId];
@@ -451,9 +876,6 @@ class UIModule extends EventEmitter {
 
     /**
      * Update progress circle
-     * @param {number} timeLeft - Time left in seconds
-     * @param {number} duration - Total duration in seconds
-     * @private
      */
     _updateProgress(timeLeft, duration) {
         if (!this.elements.progressCircle) return;
@@ -467,9 +889,6 @@ class UIModule extends EventEmitter {
 
     /**
      * Format time display
-     * @param {number} seconds - Seconds to format
-     * @returns {string} Formatted time
-     * @private
      */
     _formatTime(seconds) {
         const minutes = Math.floor(seconds / 60);
@@ -479,9 +898,6 @@ class UIModule extends EventEmitter {
 
     /**
      * Update toggle switch state
-     * @param {string} toggleId - Toggle element ID
-     * @param {boolean} active - Active state
-     * @private
      */
     _updateToggle(toggleId, active) {
         const toggle = this.elements[toggleId];
@@ -491,72 +907,7 @@ class UIModule extends EventEmitter {
     }
 
     /**
-     * Send chat message
-     * @private
-     */
-    _sendChatMessage() {
-        const message = this.elements.chatInput?.value.trim();
-        if (message) {
-            this.emit('sendMessage', { message });
-            this.elements.chatInput.value = '';
-        }
-    }
-
-    /**
-     * Toggle setting and emit event
-     * @param {string} setting - Setting key
-     * @private
-     */
-    _toggleSetting(setting) {
-        this.emit('toggleSetting', { setting });
-    }
-
-    /**
-     * Handle keyboard shortcuts
-     * @param {KeyboardEvent} e - Keyboard event
-     * @private
-     */
-    _handleKeyboardShortcuts(e) {
-        // ESC to exit focus mode
-        if (e.key === 'Escape' && this.state.focusMode) {
-            this.exitFocusMode();
-            return;
-        }
-        
-        // Space to start/pause timer (when not in input)
-        if (e.key === ' ' && !e.target.matches('input, textarea')) {
-            e.preventDefault();
-            this.emit('toggleTimer');
-            return;
-        }
-        
-        // Enter to send message (when chat input is focused)
-        if (e.key === 'Enter' && e.target === this.elements.chatInput) {
-            this._sendChatMessage();
-            return;
-        }
-    }
-
-    /**
-     * Handle clicks outside panels to close them
-     * @param {MouseEvent} e - Click event
-     * @private
-     */
-    _handleOutsideClick(e) {
-        // Close settings panel if clicking outside
-        if (this.state.settingsOpen && 
-            !this.elements.settingsPanel?.contains(e.target) &&
-            !this.elements.settingsBtn?.contains(e.target)) {
-            this.closeSettings();
-        }
-    }
-
-    /**
      * Safely add event listener to element
-     * @param {string} elementId - Element ID
-     * @param {string} event - Event type
-     * @param {function} handler - Event handler
-     * @private
      */
     _addEventListener(elementId, event, handler) {
         const element = this.elements[elementId];
@@ -567,8 +918,6 @@ class UIModule extends EventEmitter {
 
     /**
      * Scroll element to bottom
-     * @param {HTMLElement} element - Element to scroll
-     * @private
      */
     _scrollToBottom(element) {
         if (element) {
@@ -577,45 +926,7 @@ class UIModule extends EventEmitter {
     }
 
     /**
-     * Show chat notification
-     * @private
-     */
-    _showChatNotification() {
-        if (!this.elements.chatNotification) return;
-        
-        const current = parseInt(this.elements.chatNotification.textContent) || 0;
-        const newCount = current + 1;
-        
-        this.elements.chatNotification.textContent = newCount;
-        this.elements.chatNotification.style.display = 'block';
-        
-        // Make chat button pulse
-        if (this.elements.chatToggleBtn) {
-            this.elements.chatToggleBtn.style.animation = 'pulse 2s infinite';
-        }
-    }
-
-    /**
-     * Clear chat notification
-     * @private
-     */
-    _clearChatNotification() {
-        if (this.elements.chatNotification) {
-            this.elements.chatNotification.style.display = 'none';
-            this.elements.chatNotification.textContent = '0';
-        }
-        
-        // Stop button pulse
-        if (this.elements.chatToggleBtn) {
-            this.elements.chatToggleBtn.style.animation = '';
-        }
-    }
-
-    /**
      * Escape HTML to prevent XSS
-     * @param {string} text - Text to escape
-     * @returns {string} Escaped text
-     * @private
      */
     _escapeHtml(text) {
         const div = document.createElement('div');
@@ -627,7 +938,6 @@ class UIModule extends EventEmitter {
      * Cleanup UI resources
      */
     destroy() {
-        // Remove event listeners would go here if we stored them
         this.removeAllListeners();
     }
 }
