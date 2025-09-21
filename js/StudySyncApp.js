@@ -105,11 +105,13 @@ class StudySyncApp {
             this.ui.updateControls(true, false);
             this.ui.showToast('Timer resumed ▶️');
         });
-        
+
+        this.timer.on('stop', () => {
+            this.ui.updateControls(false, true);
+        });
+
         this.timer.on('reset', () => {
-            this.ui.updateControls(false, false);
-            this.ui.updateTimer(this.timer.timeLeft, this.timer.duration);
-            this.ui.showToast('Timer reset 🔄');
+            this.ui.updateControls(false, true);
         });
 
         this.timer.on('complete', (data) => {
@@ -248,11 +250,10 @@ class StudySyncApp {
         this.ui.updateControls(false, false);
         
         // Store the current mode before switching
-        const previousMode = mode;
         this.timer.previousMode = mode;
         
         // Play completion sound
-        if (mode === 'focus' || mode === 'short-focus' || mode === 'long-focus' || mode === 'custom') {
+        if (mode === 'focus' || mode === 'long-focus' || mode === 'custom') {
             await this.audio.playSuccess();
             this.ui.showToast('Focus session complete! Great work! 🎉', 'success');
             this.stats.endSession(mode, true);

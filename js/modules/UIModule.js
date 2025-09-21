@@ -87,7 +87,24 @@ class UIModule extends EventEmitter {
      */
     attachEventListeners() {
         // Timer controls
-        this._addEventListener('startBtn', 'click', () => this.emit('startTimer'));
+        this._addEventListener('startBtn', 'click', () => {
+            if (this.emit) {
+                if (this.timer && this.timer.isRunning) {
+                    // If running, pause the timer
+                    this.timer.pause();
+                    this.showToast('Timer paused ⏸️');
+                } else if (this.timer && this.timer.timeLeft > 0) {
+                    // If paused with time left, resume
+                    this.timer.resume();
+                    this.showToast('Timer resumed ▶️');
+                } else {
+                    // Otherwise start a new session
+                    this.emit('startTimer');
+                }
+            } else {
+                this.emit('startTimer');
+            }
+        });
         this._addEventListener('pauseBtn', 'click', () => this.emit('pauseTimer'));
         this._addEventListener('resetBtn', 'click', () => this.emit('resetTimer'));
         this._addEventListener('skipBtn', 'click', () => this.emit('skipTimer'));
@@ -204,13 +221,13 @@ class UIModule extends EventEmitter {
         if (!startBtn || !resetBtn) return;
         
         if (isRunning) {
-            startBtn.textContent = 'Pause'; // Changed from "Running"
+            startBtn.textContent = 'Pause';
             startBtn.classList.remove('start');
-            startBtn.classList.add('pause'); // Changed from "running"
+            startBtn.classList.add('pause');
             resetBtn.disabled = false;
         } else {
             startBtn.textContent = canStart ? 'Start' : 'Start';
-            startBtn.classList.remove('pause'); // Changed from "running"
+            startBtn.classList.remove('pause');
             startBtn.classList.add('start');
             resetBtn.disabled = !canStart;
         }
@@ -553,28 +570,6 @@ class UIModule extends EventEmitter {
             !this.elements.settingsBtn?.contains(e.target)) {
             this.closeSettings();
         }
-    }
-
-    /**
-     * Setup all event listeners between modules
-     * @private
-     */
-    _setupEventListeners() {
-        // Timer start/pause button event
-        this._addEventListener('startBtn', 'click', () => {
-            if (this.timer.isRunning) {
-                // If running, pause the timer
-                this.timer.pause();
-                this.ui.showToast('Timer paused ⏸️');
-            } else if (this.timer.timeLeft > 0) {
-                // If paused with time left, resume
-                this.timer.resume();
-                this.ui.showToast('Timer resumed ▶️');
-            } else {
-                // Otherwise start a new session
-                this.timer.start();
-            }
-        });
     }
 
     /**

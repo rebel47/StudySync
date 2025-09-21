@@ -6,22 +6,19 @@ class TimerModule extends EventEmitter {
     constructor() {
         super();
         
-        // Timer state
-        this.currentMode = 'focus';
-        this.previousMode = 'focus';
-        this.duration = 1500; // 25 minutes in seconds
+        this.duration = 1500; // Default 25 minutes in seconds
         this.timeLeft = this.duration;
+        this.current = 'focus';
         this.isRunning = false;
-        this.isPaused = false;
-        this.startTime = null;
         this.interval = null;
+        this.previousMode = 'focus'; // Track previous mode for auto-restart
         
-        // Timer modes configuration
-        this.modes = {
-            focus: { duration: 1500, name: 'Focus Session' },
-            'short-break': { duration: 300, name: 'Short Break' },
-            'long-break': { duration: 3300, name: 'Long Break' }, // Changed from 900 to 3300 (55 minutes)
-            custom: { duration: 1500, name: 'Custom Timer' }
+        this.availableModes = {
+            'focus': { name: 'Focus Session', duration: 1500 },
+            'short-break': { name: 'Short Break', duration: 300 },
+            'long-break': { name: 'Long Break', duration: 900 },
+            'long-focus': { name: 'Long Focus', duration: 3300 },
+            'custom': { name: 'Custom Timer', duration: 3000 }
         };
     }
 
@@ -92,7 +89,6 @@ class TimerModule extends EventEmitter {
      */
     reset() {
         this.isRunning = false;
-        this.isPaused = false;
         this.timeLeft = this.duration;
         this.startTime = null;
         this._clearInterval();
