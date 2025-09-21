@@ -1,4 +1,3 @@
- 
 /**
  * StudySyncApp - Main application orchestrator
  */
@@ -94,7 +93,7 @@ class StudySyncApp {
         this.timer.on('start', () => {
             this.ui.updateControls(true, false);
             this.ui.showToast('Timer started! Stay focused 🎯');
-            this.stats.startSession(this.timer.currentMode);
+            this.stats.startSession(this.timer.current);
         });
 
         this.timer.on('pause', () => {
@@ -102,6 +101,11 @@ class StudySyncApp {
             this.ui.showToast('Timer paused ⏸️');
         });
 
+        this.timer.on('resume', () => {
+            this.ui.updateControls(true, false);
+            this.ui.showToast('Timer resumed ▶️');
+        });
+        
         this.timer.on('reset', () => {
             this.ui.updateControls(false, false);
             this.ui.updateTimer(this.timer.timeLeft, this.timer.duration);
@@ -243,11 +247,26 @@ class StudySyncApp {
     async _handleTimerComplete(mode) {
         this.ui.updateControls(false, false);
         
+        // Store the current mode before switching
+        const previousMode = mode;
+        this.timer.previousMode = mode;
+        
         // Play completion sound
-        if (mode === 'focus') {
+        if (mode === 'focus' || mode === 'short-focus' || mode === 'long-focus' || mode === 'custom') {
             await this.audio.playSuccess();
             this.ui.showToast('Focus session complete! Great work! 🎉', 'success');
             this.stats.endSession(mode, true);
+            
+            // Sync with auth module if signed in
+            if (this.auth && this.auth.isAuthenticated) {
+                await this.auth.addSession({
+                    mode,
+                    duration: this.timer.duration,
+                    completed: true,
+                    date: new Date().toDateString(),
+                    timestamp: Date.now()
+                });
+            }
             
             // Auto-start break if enabled
             if (this.settings.get('autoBreak')) {
@@ -256,15 +275,38 @@ class StudySyncApp {
                     this.timer.start();
                 }, 2000);
             }
-        } else {
+        } else if (mode.includes('break')) {
             await this.audio.playCompletion();
             this.ui.showToast('Break time over! Ready to focus again? 💪', 'info');
             this.stats.endSession(mode, true);
             
-            // Auto-start focus if enabled
+            // Sync break session with auth module if signed in
+            if (this.auth && this.auth.isAuthenticated) {
+                await this.auth.addSession({
+                    mode,
+                    duration: this.timer.duration,
+                    completed: true,
+                    date: new Date().toDateString(),
+                    timestamp: Date.now()
+                });
+            }
+            
+            // Auto-start the previous focus mode if autoFocus is enabled
             if (this.settings.get('autoFocus')) {
                 setTimeout(() => {
-                    this.timer.setMode('focus', this.settings.get('customDuration') * 60);
+                    // Get the duration based on the previous mode
+                    let duration = 1500; // Default 25 minutes
+                    let prevMode = this.timer.previousMode;
+                    
+                    if (prevMode === 'focus') {
+                        duration = 1500; // 25 minutes
+                    } else if (prevMode === 'long-focus') {
+                        duration = 3300; // 55 minutes
+                    } else if (prevMode === 'custom') {
+                        duration = this.settings.get('customDuration') * 60;
+                    }
+                    
+                    this.timer.setMode(prevMode, duration);
                     this.timer.start();
                 }, 2000);
             }
@@ -277,7 +319,7 @@ class StudySyncApp {
 
         // Add system message in room
         if (this.roomId) {
-            const message = mode === 'focus' ? 
+            const message = mode.includes('focus') ? 
                 'Focus session completed! 🎯' : 
                 'Break time finished! 💪';
             this.ui.addChatMessage(message, false, 'System');

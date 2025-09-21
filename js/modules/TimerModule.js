@@ -1,5 +1,5 @@
 /**
- * TimerModule - Core timer functionality
+ * TimerModule - Timer functionality with modes
  */
 
 class TimerModule extends EventEmitter {
@@ -8,6 +8,7 @@ class TimerModule extends EventEmitter {
         
         // Timer state
         this.currentMode = 'focus';
+        this.previousMode = 'focus';
         this.duration = 1500; // 25 minutes in seconds
         this.timeLeft = this.duration;
         this.isRunning = false;
@@ -26,45 +27,64 @@ class TimerModule extends EventEmitter {
 
     /**
      * Start the timer
+     * @returns {boolean} Success status
      */
     start() {
-        if (this.isRunning) return;
-
-        // If timer is at 0, reset to default duration for current mode
-        if (this.timeLeft === 0) {
-            if (this.modes[this.currentMode]) {
-                this.duration = this.modes[this.currentMode].duration;
-                this.timeLeft = this.duration;
-            }
+        if (this.isRunning) return false;
+        
+        // If timer is at 0, reset to the full duration
+        if (this.timeLeft <= 0) {
+            this.timeLeft = this.duration;
         }
-
+        
         this.isRunning = true;
-        this.isPaused = false;
-        this.startTime = Date.now() - (this.duration - this.timeLeft) * 1000;
-
-        this._startInterval();
-        this.emit('start', {
-            mode: this.currentMode,
-            duration: this.duration,
-            timeLeft: this.timeLeft
+        this._setupInterval();
+        
+        this.emit('start', { 
+            mode: this.current, 
+            duration: this.duration, 
+            timeLeft: this.timeLeft 
         });
+        
+        return true;
     }
 
     /**
      * Pause the timer
+     * @returns {boolean} Success status
      */
     pause() {
-        if (!this.isRunning) return;
+        if (!this.isRunning) return false;
         
         this.isRunning = false;
-        this.isPaused = true;
-        this._clearInterval();
+        clearInterval(this.interval);
         
-        this.emit('pause', {
-            mode: this.currentMode,
-            timeLeft: this.timeLeft,
-            duration: this.duration
+        this.emit('pause', { 
+            mode: this.current, 
+            duration: this.duration, 
+            timeLeft: this.timeLeft 
         });
+        
+        return true;
+    }
+
+    /**
+     * Resume the timer
+     * @returns {boolean} Success status
+     */
+    resume() {
+        if (this.isRunning || this.timeLeft <= 0) return false;
+        
+        this.isRunning = true;
+        this._setupInterval();
+        
+        this.emit('resume', { 
+            mode: this.current, 
+            duration: this.duration, 
+            timeLeft: this.timeLeft 
+        });
+        
+        return true;
     }
 
     /**

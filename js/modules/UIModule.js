@@ -195,20 +195,24 @@ class UIModule extends EventEmitter {
     /**
      * Update control buttons state
      * @param {boolean} isRunning - Timer running state
-     * @param {boolean} isPaused - Timer paused state
+     * @param {boolean} canStart - Timer can start state
      */
-    updateControls(isRunning, isPaused) {
-        if (this.elements.startBtn) {
-            this.elements.startBtn.textContent = isRunning ? 'Running' : (isPaused ? 'Resume' : 'Start');
-            this.elements.startBtn.style.display = isRunning ? 'none' : 'block';
-        }
+    updateControls(isRunning, canStart) {
+        const startBtn = this.elements.startBtn;
+        const resetBtn = this.elements.resetBtn;
         
-        if (this.elements.pauseBtn) {
-            this.elements.pauseBtn.style.display = isRunning ? 'block' : 'none';
-        }
+        if (!startBtn || !resetBtn) return;
         
-        if (this.elements.focusStartBtn) {
-            this.elements.focusStartBtn.textContent = isRunning ? 'Running' : (isPaused ? 'Resume' : 'Start');
+        if (isRunning) {
+            startBtn.textContent = 'Pause'; // Changed from "Running"
+            startBtn.classList.remove('start');
+            startBtn.classList.add('pause'); // Changed from "running"
+            resetBtn.disabled = false;
+        } else {
+            startBtn.textContent = canStart ? 'Start' : 'Start';
+            startBtn.classList.remove('pause'); // Changed from "running"
+            startBtn.classList.add('start');
+            resetBtn.disabled = !canStart;
         }
     }
 
@@ -549,6 +553,28 @@ class UIModule extends EventEmitter {
             !this.elements.settingsBtn?.contains(e.target)) {
             this.closeSettings();
         }
+    }
+
+    /**
+     * Setup all event listeners between modules
+     * @private
+     */
+    _setupEventListeners() {
+        // Timer start/pause button event
+        this._addEventListener('startBtn', 'click', () => {
+            if (this.timer.isRunning) {
+                // If running, pause the timer
+                this.timer.pause();
+                this.ui.showToast('Timer paused ⏸️');
+            } else if (this.timer.timeLeft > 0) {
+                // If paused with time left, resume
+                this.timer.resume();
+                this.ui.showToast('Timer resumed ▶️');
+            } else {
+                // Otherwise start a new session
+                this.timer.start();
+            }
+        });
     }
 
     /**
