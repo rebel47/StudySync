@@ -273,3 +273,82 @@ MIT License - feel free to use, modify, and distribute!
 **Made with ❤️ for students everywhere. Happy studying! 📚✨**
 
 > *"The secret to getting ahead is getting started. The secret to getting started is breaking your complex overwhelming tasks into small manageable tasks, and starting on the first one."* - Mark Twain
+
+# StudySync Pro (temporary project notes)
+
+WARNING: This README temporarily contains project metadata and Firebase config for migration/recreation purposes. Remove sensitive values once migration is complete.
+
+---
+
+Project: StudySync Pro — Enhanced Collaborative Timer (Pomodoro)
+Deployed: https://rebel47.github.io/StudySync/
+
+Summary
+- Browser-based collaborative Pomodoro/timer app with chat, rooms, focus mode, and Firebase backend.
+- Modular JS structure under `js/modules` (Timer, Firebase, Stats, Settings, UI, Audio, Auth).
+
+Important files and folders
+- index.html — main HTML (includes script tags and overlays).
+- js/config/firebase.js — Firebase configuration (used by app).
+- js/main.js — app bootstrap (creates StudySyncApp instance).
+- js/StudySyncApp.js — main orchestrator tying modules together.
+- js/modules/TimerModule.js — timer logic (start/pause/resume/reset, modes).
+- js/modules/FirebaseModule.js — realtime DB / rooms / chat integration.
+- js/modules/StatsModule.js — tracking sessions, streaks, analytics.
+- js/modules/UIModule.js — DOM bindings and UI updates.
+- js/modules/AuthModule.js — Firebase Authentication (Google Sign-In).
+- styles/ — CSS files (main.css, components.css, responsive.css)
+
+Firebase config (from js/config/firebase.js) — TEMPORARY COPY
+Replace values with your own if recreating; if this project belongs to you, keys are the same as in the config file.
+
+```
+const firebaseConfig = {
+    apiKey: "AIzaSyCHOhq4c1FxOU8MqgZmg58VVOPBe-0NsGE",
+    authDomain: "studysync-7c87f.firebaseapp.com",
+    databaseURL: "https://studysync-7c87f-default-rtdb.europe-west1.firebasedatabase.app/",
+    projectId: "studysync-7c87f",
+    storageBucket: "studysync-7c87f.firebasestorage.app",
+    messagingSenderId: "176545965227",
+    appId: "1:176545965227:web:465da8d394e1aa00eb43ee"
+};
+```
+
+Notes when recreating a Firebase project
+1. Create a Firebase project in the Firebase Console.
+2. Enable Realtime Database and set rules appropriate for your app (start in test mode for quick testing).
+3. Enable Authentication -> Sign-in method -> Google and add authorized domain (e.g. `rebel47.github.io` or `localhost`).
+4. Replace `js/config/firebase.js` config with your project's config (or use environment injection during build).
+5. If using GitHub Pages, add the domain to OAuth allowed domains.
+
+Quick local dev steps
+1. Clone the repository to your machine.
+2. Ensure the `js/config/firebase.js` has valid Firebase config for your project.
+3. Serve the project locally (static server):
+   - Python: `python -m http.server 8000` (from project root)
+   - or install `serve`: `npx serve .` / `npm i -g serve` then `serve .`
+4. Open `http://localhost:8000` and test Google Sign-In and timer functionality.
+
+Recreate / Migration checklist
+- [ ] Create Firebase project and configure Realtime DB and Auth (Google).
+- [ ] Update or regenerate `js/config/firebase.js` with new project config.
+- [ ] Audit Firebase Realtime Database rules and indexes used by FirebaseModule.
+- [ ] Run locally and test: sign-in, create/join room, start timer, chat, sync.
+- [ ] Deploy to GitHub Pages (or other static host). Update OAuth redirect/allowed domains.
+
+Development notes & recommendations
+- Modular structure: keep modules small and single-responsibility (Timer, UI, Firebase, Stats, Settings, Audio, Auth).
+- Remove console.debug logs and temporary debug scripts before production deploy.
+- Move Firebase config out of source in production (use build-time env or server-side proxy).
+- Use Firestore for more structured data if you plan to scale chat/rooms beyond simple prototypes.
+
+Temporary debug artifacts to remove after migration
+- Any `console.log` debugging in TimerModule, StudySyncApp, and index.html debug script.
+- The README copy of Firebase keys — remove once migration completes.
+
+Contact / Notes
+- Deployed demo (original): https://rebel47.github.io/StudySync/
+
+---
+
+This file is intentionally concise. If you want, I can also generate a migration script, a cleaned starter repo (without your Firebase keys), or a step-by-step automation (bash/PowerShell) to recreate the project and inject new Firebase config.
