@@ -125,10 +125,6 @@ class StudySyncApp {
         });
 
         // UI events
-        this.ui.on('startTimer', () => this.timer.start());
-        this.ui.on('pauseTimer', () => this.timer.pause());
-        this.ui.on('resetTimer', () => this.timer.reset());
-        this.ui.on('skipTimer', () => this.timer.skip());
         this.ui.on('toggleTimer', () => {
             if (this.timer.isRunning) {
                 this.timer.pause();
@@ -136,7 +132,23 @@ class StudySyncApp {
                 this.timer.start();
             }
         });
-        
+
+        this.ui.on('startTimer', () => {
+            this.timer.start();
+        });
+
+        this.ui.on('pauseTimer', () => {
+            this.timer.pause();
+        });
+
+        this.ui.on('resetTimer', () => {
+            this.timer.reset();
+        });
+
+        this.ui.on('skipTimer', () => {
+            this.timer.skip();
+        });
+
         this.ui.on('modeChange', (data) => {
             if (this.roomId && !this.isHost) {
                 this.ui.showToast('Only the host can change timer modes! 🔒');
