@@ -1,4 +1,3 @@
-
 /**
  * Main entry point for StudySync Pro
  * Handles app initialization and global error handling
@@ -297,5 +296,21 @@
     
     // Start the application
     main();
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('Main.js DOMContentLoaded');
+        
+        // Create app and expose to window for debugging
+        window.app = new StudySyncApp();
+        
+        // Initialize the app
+        window.app.initialize().then(() => {
+            console.log('App initialized successfully');
+        }).catch(error => {
+            console.error('App initialization failed:', error);
+        });
+        
+        console.log('App created and initialization started');
+    });
     
 })();

@@ -230,54 +230,40 @@
     <!-- Temporary Debug Script -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('DOM loaded - setting up chat');
+            console.log('Debug script loaded');
             
-            const chatToggleBtn = document.getElementById('chatToggleBtn');
-            const chatSidebar = document.getElementById('chatSidebar');
-            const chatOverlay = document.getElementById('chatOverlay');
-            const chatCloseBtn = document.getElementById('chatCloseBtn');
+            // Check all key elements
+            const startBtn = document.getElementById('startBtn');
+            console.log('Start button exists:', !!startBtn);
             
-            // Make sure chat button is visible
-            if (chatToggleBtn) {
-                chatToggleBtn.style.display = 'inline-flex';
-                console.log('Chat button is visible');
-                
-                // Open chat when clicked
-                chatToggleBtn.addEventListener('click', function() {
-                    console.log('Opening chat...');
-                    if (chatSidebar) {
-                        chatSidebar.classList.add('open');
-                        console.log('Added open class to sidebar');
-                    }
-                    if (chatOverlay) {
-                        chatOverlay.classList.add('active');
-                        console.log('Added active class to overlay');
+            if (startBtn) {
+                console.log('Adding direct event listener to start button');
+                startBtn.addEventListener('click', function() {
+                    console.log('Direct start button click detected');
+                    
+                    // Try to start the timer directly if app is available
+                    if (window.app && window.app.timer) {
+                        console.log('Attempting to start timer directly');
+                        window.app.timer.start();
+                    } else {
+                        console.log('App or timer not available from window');
                     }
                 });
             }
             
-            // Close chat when X is clicked
-            if (chatCloseBtn) {
-                chatCloseBtn.addEventListener('click', function() {
-                    console.log('Closing chat...');
-                    if (chatSidebar) {
-                        chatSidebar.classList.remove('open');
-                    }
-                    if (chatOverlay) {
-                        chatOverlay.classList.remove('active');
-                    }
-                });
+            // Check timer module
+            if (window.TimerModule) {
+                console.log('TimerModule exists globally');
+            } else {
+                console.error('TimerModule not found globally');
             }
             
-            // Close chat when overlay is clicked
-            if (chatOverlay) {
-                chatOverlay.addEventListener('click', function() {
-                    console.log('Closing chat via overlay...');
-                    if (chatSidebar) {
-                        chatSidebar.classList.remove('open');
-                    }
-                    chatOverlay.classList.remove('active');
-                });
+            // Check app initialization
+            if (window.app) {
+                console.log('App initialized:', window.app.isInitialized);
+                console.log('Timer exists:', !!window.app.timer);
+            } else {
+                console.error('App not initialized on window');
             }
         });
     </script>

@@ -69,9 +69,41 @@ class StudySyncApp {
             
             this.ui.showToast('StudySync Pro ready! 🎯', 'success');
             
+            // Debug code for timer
+            console.log('Adding debug handlers');
+            document.addEventListener('DOMContentLoaded', () => {
+                console.log('DOM loaded, adding start button listener');
+                const startBtn = document.getElementById('startBtn');
+                if (startBtn) {
+                    console.log('Start button found, adding direct click handler');
+                    startBtn.addEventListener('click', () => {
+                        console.log('Start button direct click detected');
+                        this._debugStartTimer();
+                    });
+                } else {
+                    console.error('Start button not found in DOM');
+                }
+            });
+            
         } catch (error) {
             console.error('Failed to initialize StudySync:', error);
             this.ui.showToast('Initialization failed. Some features may not work.', 'error');
+        }
+    }
+
+    /**
+     * Debug function to test timer starting
+     * @private
+     */
+    _debugStartTimer() {
+        console.log('Debug start timer called');
+        const success = this.timer.start();
+        console.log('Debug timer start result:', success);
+        
+        // Update UI directly in case the event isn't properly triggering
+        if (success) {
+            this.ui.updateControls(true, false);
+            this.ui.showToast('Timer started! Stay focused 🎯');
         }
     }
 
@@ -83,78 +115,43 @@ class StudySyncApp {
         // Timer events
         this.timer.on('tick', (data) => {
             this.ui.updateTimer(data.timeLeft, data.duration);
-            
-            // Update Firebase if host
-            if (this.isHost && this.firebase.isInRoom()) {
-                this.firebase.updateTimer(this.timer.getState());
-            }
         });
-
         this.timer.on('start', () => {
-            this.ui.updateControls(true, false);
-            this.ui.showToast('Timer started! Stay focused 🎯');
-            this.stats.startSession(this.timer.current);
+            this.ui.updateControls('running', true);
         });
-
         this.timer.on('pause', () => {
-            this.ui.updateControls(false, true);
-            this.ui.showToast('Timer paused ⏸️');
+            this.ui.updateControls('paused', true);
         });
-
         this.timer.on('resume', () => {
-            this.ui.updateControls(true, false);
-            this.ui.showToast('Timer resumed ▶️');
+            this.ui.updateControls('running', true);
         });
-
-        this.timer.on('stop', () => {
-            this.ui.updateControls(false, true);
-        });
-
         this.timer.on('reset', () => {
-            this.ui.updateControls(false, true);
+            this.ui.updateControls('stopped', true);
         });
-
         this.timer.on('complete', (data) => {
+            this.ui.updateControls('stopped', true);
             this._handleTimerComplete(data.mode);
         });
 
-        this.timer.on('modeChange', (data) => {
-            this.ui.updateMode(data.mode);
-            this.ui.updateTimer(data.duration, data.duration);
-            this.ui.showToast(`Switched to ${data.mode} mode`);
-        });
-
         // UI events
-        this.ui.on('toggleTimer', () => {
-            if (this.timer.isRunning) {
-                this.timer.pause();
-            } else {
+        this.ui.on('startTimer', () => {
+            if (this.timer.state === 'stopped') {
                 this.timer.start();
+            } else if (this.timer.state === 'paused') {
+                this.timer.resume();
+            } else if (this.timer.state === 'running') {
+                this.timer.pause();
             }
         });
-
-        this.ui.on('startTimer', () => {
-            this.timer.start();
-        });
-
-        this.ui.on('pauseTimer', () => {
-            this.timer.pause();
-        });
-
         this.ui.on('resetTimer', () => {
             this.timer.reset();
         });
-
         this.ui.on('skipTimer', () => {
-            this.timer.skip();
+            this.timer.reset();
         });
-
         this.ui.on('modeChange', (data) => {
-            if (this.roomId && !this.isHost) {
-                this.ui.showToast('Only the host can change timer modes! 🔒');
-                return;
-            }
             this.timer.setMode(data.mode, data.duration);
+            this.ui.updateControls('stopped', true);
         });
 
         // Room management

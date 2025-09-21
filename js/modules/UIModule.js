@@ -87,11 +87,15 @@ class UIModule extends EventEmitter {
      */
     attachEventListeners() {
         // Timer controls
-        this._addEventListener('startBtn', 'click', () => this.emit('toggleTimer'));
+        this._addEventListener('startBtn', 'click', () => {
+            console.log('Start button clicked');
+            console.log('Emitting startTimer event');
+            this.emit('startTimer');
+        });
         this._addEventListener('pauseBtn', 'click', () => this.emit('pauseTimer'));
         this._addEventListener('resetBtn', 'click', () => this.emit('resetTimer'));
         this._addEventListener('skipBtn', 'click', () => this.emit('skipTimer'));
-        this._addEventListener('focusStartBtn', 'click', () => this.emit('toggleTimer'));
+        this._addEventListener('focusStartBtn', 'click', () => this.emit('startTimer'));
         this._addEventListener('focusResetBtn', 'click', () => this.emit('resetTimer'));
         
         // Mode selection
@@ -194,23 +198,26 @@ class UIModule extends EventEmitter {
 
     /**
      * Update control buttons state
-     * @param {boolean} isRunning - Timer running state
+     * @param {string} timerState - 'stopped', 'running', 'paused'
      * @param {boolean} canStart - Timer can start state
      */
-    updateControls(isRunning, canStart) {
+    updateControls(timerState, canStart) {
         const startBtn = this.elements.startBtn;
         const resetBtn = this.elements.resetBtn;
-        
         if (!startBtn || !resetBtn) return;
-        
-        if (isRunning) {
+        if (timerState === 'running') {
             startBtn.textContent = 'Pause';
-            startBtn.classList.remove('start');
+            startBtn.classList.remove('start', 'resume');
             startBtn.classList.add('pause');
             resetBtn.disabled = false;
+        } else if (timerState === 'paused') {
+            startBtn.textContent = 'Resume';
+            startBtn.classList.remove('start', 'pause');
+            startBtn.classList.add('resume');
+            resetBtn.disabled = false;
         } else {
-            startBtn.textContent = canStart ? 'Start' : 'Start';
-            startBtn.classList.remove('pause');
+            startBtn.textContent = 'Start';
+            startBtn.classList.remove('pause', 'resume');
             startBtn.classList.add('start');
             resetBtn.disabled = !canStart;
         }
