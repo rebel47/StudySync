@@ -7,15 +7,36 @@ yarn-error.log*
 firebase-debug.log*
 firebase-debug.*.log*
 
-# Firebase cache
-.firebase/
+# Firebase sensitive files
 .firebaserc
-# Firebase config
+firebase.json
+.firebase/
 
-# Uncomment this if you'd like others to create their own Firebase project.
-# For a team working on the same Firebase project(s), it is recommended to leave
-# it commented so all members can deploy to the same project(s) in .firebaserc.
-# .firebaserc
+# Environment variables and config files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+config.js
+config.json
+
+# API keys and secrets
+keys/
+secrets/
+*.key
+*.pem
+*.p12
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Build outputs
+build/
+dist/
+out/
 
 # Runtime data
 pids
@@ -28,6 +49,7 @@ lib-cov
 
 # Coverage directory used by tools like istanbul
 coverage
+*.lcov
 
 # nyc test coverage
 .nyc_output
@@ -46,12 +68,22 @@ build/Release
 
 # Dependency directories
 node_modules/
+jspm_packages/
+
+# TypeScript cache
+*.tsbuildinfo
 
 # Optional npm cache directory
 .npm
 
 # Optional eslint cache
 .eslintcache
+
+# Microbundle cache
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
 
 # Optional REPL history
 .node_repl_history
@@ -62,8 +94,48 @@ node_modules/
 # Yarn Integrity file
 .yarn-integrity
 
-# dotenv environment variables file
-.env
+# parcel-bundler cache (https://parceljs.org/)
+.cache
+.parcel-cache
 
-# dataconnect generated files
+# Next.js build output
+.next
+
+# Nuxt.js build / generate output
+.nuxt
+dist
+
+# Gatsby files
+.cache/
+public
+
+# Storybook build outputs
+.out
+.storybook-out
+
+# Temporary folders
+tmp/
+temp/
+
+# Editor directories and files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Firebase dataconnect generated files
 .dataconnect
+
+# Backup files
+*.backup
+*.bak
