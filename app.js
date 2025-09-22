@@ -342,6 +342,9 @@ async function createSession() {
     showSessionInfo(sessionCode);
     listenToSession(sessionCode);
     showChatToggle();
+    
+    // Start listening to chat immediately
+    listenToChat();
   } catch (err) {
     console.error('Error creating session:', err);
     if (err.code === 'PERMISSION_DENIED') {
@@ -439,6 +442,9 @@ async function joinSession(sessionCode) {
     listenToSession(sessionCode);
     showChatToggle();
     hideJoinModal();
+    
+    // Start listening to chat immediately
+    listenToChat();
     
     console.log(`Successfully joined session: ${sessionCode}`);
   } catch (err) {
@@ -778,7 +784,11 @@ function toggleChat() {
     state.chat.unreadCount = 0;
     updateUnreadCount();
     chatInput.focus();
-    listenToChat();
+    
+    // Always start listening when chat opens
+    if (state.session) {
+      listenToChat();
+    }
     
     // Scroll to bottom when opening chat
     setTimeout(() => {
@@ -806,7 +816,16 @@ function listenToChat() {
   
   const messagesRef = rtdb.ref(`sessions/${state.session}/messages`);
   
-  if (window.chatListener) window.chatListener();
+  // Clean up existing listener
+  if (window.chatListener) {
+    window.chatListener();
+    window.chatListener = null;
+  }
+  
+  // Clear existing messages in UI
+  chatMessages.innerHTML = '';
+  
+  // Listen for all messages (including existing ones)
   window.chatListener = messagesRef.on('child_added', (snapshot) => {
     const message = snapshot.val();
     if (!message) return;
@@ -829,8 +848,8 @@ function listenToChat() {
     chatMessages.appendChild(messageEl);
     chatMessages.scrollTop = chatMessages.scrollHeight;
     
-    // Handle unread count
-    if (!state.chat.isOpen && !isOwnMessage) {
+    // Handle unread count (only for new messages, not when loading history)
+    if (!state.chat.isOpen && !isOwnMessage && message.timestamp > Date.now() - 5000) {
       state.chat.unreadCount++;
       updateUnreadCount();
       
@@ -838,11 +857,13 @@ function listenToChat() {
       if ('Notification' in window && Notification.permission === 'granted') {
         new Notification(`New message from ${message.sender}`, {
           body: message.text,
-          icon: '/favicon.ico' // Add if you have a favicon
+          icon: '/favicon.ico'
         });
       }
     }
   });
+  
+  console.log('Started listening to chat for session:', state.session);
 }
 
 function formatMessageTime(timestamp) {
