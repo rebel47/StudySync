@@ -105,6 +105,7 @@
 
     <!-- Focus Mode Overlay -->
     <div id="focus-mode" class="focus-mode hidden">
+        <button class="focus-close" onclick="exitFocusMode()">×</button>
         <div class="focus-timer">
             <div class="focus-timer-ring">
                 <svg class="timer-svg" viewBox="0 0 200 200">
@@ -122,7 +123,7 @@
             <button id="focus-pause" class="btn ghost large hidden">Pause</button>
             <button id="focus-reset" class="btn ghost large">Reset</button>
         </div>
-        <div class="focus-exit">Press ESC to exit focus mode</div>
+        <div class="focus-exit">Press ESC or Ctrl+F to exit focus mode</div>
     </div>
 
     <!-- Join Session Modal -->

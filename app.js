@@ -747,13 +747,19 @@ function updateTimerButtons() {
 
 // Focus Mode Functions
 function enterFocusMode() {
-  focusMode.classList.remove('hidden');
-  document.body.style.overflow = 'hidden';
+  if (focusMode) {
+    focusMode.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+    console.log('Entering focus mode');
+  }
 }
 
 function exitFocusMode() {
-  focusMode.classList.add('hidden');
-  document.body.style.overflow = '';
+  if (focusMode) {
+    focusMode.classList.add('hidden');
+    document.body.style.overflow = '';
+    console.log('Exiting focus mode');
+  }
 }
 
 // Chat Functions
@@ -1030,6 +1036,14 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && joinModal && !joinModal.classList.contains('hidden')) {
     const code = sessionCodeInput.value.trim().toUpperCase();
     if (code) joinSession(code);
+  }
+  if (e.key === 'f' && (e.ctrlKey || e.metaKey)) {
+    e.preventDefault();
+    if (focusMode.classList.contains('hidden')) {
+      enterFocusMode();
+    } else {
+      exitFocusMode();
+    }
   }
 });
 
