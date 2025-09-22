@@ -263,7 +263,7 @@ async function createSession() {
   }
   
   try {
-    // Check rate limiting
+    // Enhanced rate limiting with stricter controls
     const userLimitsRef = rtdb.ref(`userLimits/${state.user.uid}`);
     const limitsSnapshot = await userLimitsRef.once('value');
     const limits = limitsSnapshot.val() || {};
@@ -272,17 +272,33 @@ async function createSession() {
     const lastCreated = limits.lastSessionCreated || 0;
     const sessionsToday = limits.sessionsCreated || 0;
     
-    // Rate limit: max 10 sessions per day, 1 per minute
+    // Strict rate limits to prevent DoS
     const oneDay = 24 * 60 * 60 * 1000;
-    const oneMinute = 60 * 1000;
+    const fiveMinutes = 5 * 60 * 1000;  // Increased from 1 minute
+    const oneHour = 60 * 60 * 1000;
     
-    if (now - lastCreated < oneMinute) {
-      alert('Please wait a minute before creating another session.');
+    // Progressive rate limiting
+    if (now - lastCreated < fiveMinutes) {
+      alert('Please wait 5 minutes before creating another session to prevent spam.');
       return;
     }
     
-    if (sessionsToday >= 10 && (now - lastCreated) < oneDay) {
-      alert('You have reached the daily limit of 10 sessions. Please try again tomorrow.');
+    // Daily limits with hourly sub-limits
+    const sessionsInLastHour = await getSessionsInTimeWindow(userLimitsRef, oneHour);
+    if (sessionsInLastHour >= 3) {
+      alert('You can only create 3 sessions per hour. Please try again later.');
+      return;
+    }
+    
+    if (sessionsToday >= 8 && (now - lastCreated) < oneDay) { // Reduced from 10
+      alert('You have reached the daily limit of 8 sessions. Please try again tomorrow.');
+      return;
+    }
+    
+    // Check for existing active sessions by this user
+    const activeSessionsCount = await countActiveSessionsByUser(state.user.uid);
+    if (activeSessionsCount >= 2) { // Max 2 concurrent sessions
+      alert('You can only have 2 active sessions at a time. Please leave an existing session first.');
       return;
     }
     
@@ -291,10 +307,11 @@ async function createSession() {
     
     console.log('Creating session with code:', sessionCode);
     
-    // Create session with validation
+    // Create session with validation and expiry
     await rtdb.ref(`sessions/${sessionCode}`).set({
       host: state.user.uid,
       created: firebase.database.ServerValue.TIMESTAMP,
+      expiresAt: now + (6 * 60 * 60 * 1000), // Auto-expire in 6 hours
       timer: {
         timeLeft: 25 * 60,
         mode: 'focus',
@@ -309,11 +326,14 @@ async function createSession() {
       }
     });
     
-    // Update user limits
+    // Update user limits with timestamp tracking
     const newSessionsCount = (now - lastCreated) < oneDay ? sessionsToday + 1 : 1;
     await userLimitsRef.set({
       sessionsCreated: newSessionsCount,
-      lastSessionCreated: now
+      lastSessionCreated: now,
+      sessionHistory: {
+        [now]: sessionCode // Track session creation times
+      }
     });
     
     console.log('Session created successfully');
@@ -325,10 +345,51 @@ async function createSession() {
   } catch (err) {
     console.error('Error creating session:', err);
     if (err.code === 'PERMISSION_DENIED') {
-      alert('Rate limit exceeded. Please try again later.');
+      alert('Rate limit exceeded or insufficient permissions. Please try again later.');
     } else {
       alert(`Failed to create session: ${err.message}`);
     }
+  }
+}
+
+// Helper function to count sessions in time window
+async function getSessionsInTimeWindow(userLimitsRef, timeWindow) {
+  try {
+    const snapshot = await userLimitsRef.child('sessionHistory').once('value');
+    const history = snapshot.val() || {};
+    const now = Date.now();
+    
+    return Object.keys(history).filter(timestamp => 
+      now - parseInt(timestamp) < timeWindow
+    ).length;
+  } catch (err) {
+    console.log('Error checking session history:', err);
+    return 0;
+  }
+}
+
+// Helper function to count active sessions by user
+async function countActiveSessionsByUser(userId) {
+  try {
+    const sessionsSnapshot = await rtdb.ref('sessions').once('value');
+    const sessions = sessionsSnapshot.val() || {};
+    
+    let count = 0;
+    const now = Date.now();
+    
+    Object.values(sessions).forEach(session => {
+      if (session.host === userId && 
+          session.participants && 
+          Object.keys(session.participants).length > 0 &&
+          (!session.expiresAt || session.expiresAt > now)) {
+        count++;
+      }
+    });
+    
+    return count;
+  } catch (err) {
+    console.log('Error counting active sessions:', err);
+    return 0;
   }
 }
 
@@ -347,10 +408,26 @@ async function joinSession(sessionCode) {
     const snapshot = await sessionRef.once('value');
     
     if (!snapshot.exists()) {
-      alert('Session not found');
+      alert('Session not found. Please check the session code.');
       return;
     }
     
+    const sessionData = snapshot.val();
+    
+    // Check if session has expired
+    if (sessionData.expiresAt && sessionData.expiresAt < Date.now()) {
+      alert('This session has expired.');
+      return;
+    }
+    
+    // Check participant limit (max 10)
+    const currentParticipants = Object.keys(sessionData.participants || {}).length;
+    if (currentParticipants >= 10) {
+      alert('This session is full (maximum 10 participants).');
+      return;
+    }
+    
+    // Add user to session
     await sessionRef.child(`participants/${state.user.uid}`).set({
       name: username,
       joined: firebase.database.ServerValue.TIMESTAMP
@@ -362,6 +439,8 @@ async function joinSession(sessionCode) {
     listenToSession(sessionCode);
     showChatToggle();
     hideJoinModal();
+    
+    console.log(`Successfully joined session: ${sessionCode}`);
   } catch (err) {
     console.error('Error joining session:', err);
     alert(`Failed to join session: ${err.message}`);
