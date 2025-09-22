@@ -200,6 +200,17 @@ signOutBtn.addEventListener('click', () => auth.signOut());
 auth.onAuthStateChanged(user => {
   state.user = user;
   if (user) {
+    // Check if we should redirect to landing page
+    const urlParams = new URLSearchParams(window.location.search);
+    const skipLanding = urlParams.get('skip') === 'landing';
+    
+    if (!skipLanding && !sessionStorage.getItem('landed')) {
+      // First time login, redirect to landing
+      sessionStorage.setItem('landed', 'true');
+      window.location.href = 'landing.html';
+      return;
+    }
+    
     signInBtn.classList.add('hidden');
     signOutBtn.classList.remove('hidden');
     addNoteBtn.disabled = false;
@@ -210,6 +221,8 @@ auth.onAuthStateChanged(user => {
     userName.classList.toggle('hidden', !user.displayName && !user.email);
     listenNotes();
   } else {
+    // Clear landing flag when signing out
+    sessionStorage.removeItem('landed');
     signInBtn.classList.remove('hidden');
     signOutBtn.classList.add('hidden');
     addNoteBtn.disabled = true;

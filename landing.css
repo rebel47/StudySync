@@ -1,0 +1,337 @@
+:root {
+  --bg: #0f1724;
+  --panel: #0b1220;
+  --muted: #9aa4b2;
+  --accent: #7c5cff;
+  --accent-2: #00d4ff;
+  --glass: rgba(255,255,255,0.03);
+  --card: #071124;
+  --text: #e6eef8;
+  --radius: 12px;
+  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+}
+
+* { box-sizing: border-box; }
+html, body { 
+  height: 100%; 
+  margin: 0; 
+  background: linear-gradient(135deg, #071124 0%, #041021 50%, #0a1628 100%); 
+  color: var(--text); 
+  overflow-x: hidden;
+}
+
+.landing-container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Header */
+.landing-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 40px;
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+.brand {
+  font-weight: 700;
+  font-size: 24px;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.1);
+}
+
+.user-name {
+  font-weight: 500;
+  color: var(--text);
+}
+
+/* Main Content */
+.landing-main {
+  flex: 1;
+  padding: 60px 40px;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.welcome-section {
+  text-align: center;
+  margin-bottom: 80px;
+}
+
+.welcome-title {
+  font-size: 48px;
+  font-weight: 700;
+  margin: 0 0 16px 0;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2), #ff6b6b);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  line-height: 1.2;
+}
+
+.welcome-subtitle {
+  font-size: 20px;
+  color: var(--muted);
+  margin: 0;
+  font-weight: 300;
+}
+
+/* Features Grid */
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 24px;
+  margin-bottom: 80px;
+}
+
+.feature-card {
+  background: linear-gradient(145deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+  border: 1px solid rgba(255,255,255,0.05);
+  border-radius: var(--radius);
+  padding: 32px 24px;
+  text-align: center;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(10px);
+}
+
+.feature-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(124, 92, 255, 0.3);
+  box-shadow: 0 20px 40px rgba(124, 92, 255, 0.1);
+}
+
+.feature-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  display: block;
+}
+
+.feature-card h3 {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0 0 12px 0;
+  color: var(--text);
+}
+
+.feature-card p {
+  color: var(--muted);
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* CTA Section */
+.cta-section {
+  text-align: center;
+  margin-bottom: 60px;
+  padding: 40px;
+  background: linear-gradient(135deg, rgba(124, 92, 255, 0.1), rgba(0, 212, 255, 0.05));
+  border-radius: var(--radius);
+  border: 1px solid rgba(124, 92, 255, 0.2);
+}
+
+.cta-section h2 {
+  font-size: 32px;
+  font-weight: 600;
+  margin: 0 0 12px 0;
+  color: var(--text);
+}
+
+.cta-section p {
+  font-size: 18px;
+  color: var(--muted);
+  margin: 0 0 32px 0;
+}
+
+.cta-buttons {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* Buttons */
+.btn {
+  border: 0;
+  padding: 12px 24px;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 16px;
+  transition: all 0.2s ease;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn.ghost {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+.btn.ghost:hover {
+  border-color: rgba(255,255,255,0.3);
+  background: rgba(255,255,255,0.05);
+}
+
+.btn.primary {
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  color: white;
+  box-shadow: 0 8px 24px rgba(124,92,255,0.3);
+}
+
+.btn.primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 32px rgba(124,92,255,0.4);
+}
+
+.btn.large {
+  padding: 16px 32px;
+  font-size: 18px;
+}
+
+/* Quick Stats */
+.quick-stats {
+  display: flex;
+  justify-content: center;
+  gap: 60px;
+  margin-bottom: 40px;
+}
+
+.stat {
+  text-align: center;
+}
+
+.stat-number {
+  font-size: 48px;
+  font-weight: 700;
+  color: var(--accent);
+  margin-bottom: 8px;
+}
+
+.stat-label {
+  font-size: 14px;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+/* Footer */
+.landing-footer {
+  text-align: center;
+  padding: 40px;
+  border-top: 1px solid rgba(255,255,255,0.05);
+  color: var(--muted);
+}
+
+/* Animations */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.feature-card {
+  animation: fadeInUp 0.6s ease forwards;
+}
+
+.feature-card:nth-child(1) { animation-delay: 0.1s; }
+.feature-card:nth-child(2) { animation-delay: 0.2s; }
+.feature-card:nth-child(3) { animation-delay: 0.3s; }
+.feature-card:nth-child(4) { animation-delay: 0.4s; }
+.feature-card:nth-child(5) { animation-delay: 0.5s; }
+.feature-card:nth-child(6) { animation-delay: 0.6s; }
+
+/* Responsive */
+@media (max-width: 768px) {
+  .landing-header {
+    padding: 16px 20px;
+  }
+  
+  .landing-main {
+    padding: 40px 20px;
+  }
+  
+  .welcome-title {
+    font-size: 32px;
+  }
+  
+  .welcome-subtitle {
+    font-size: 16px;
+  }
+  
+  .features-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  
+  .feature-card {
+    padding: 24px 16px;
+  }
+  
+  .cta-section {
+    padding: 24px 16px;
+  }
+  
+  .cta-section h2 {
+    font-size: 24px;
+  }
+  
+  .cta-buttons {
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .btn.large {
+    width: 100%;
+    max-width: 280px;
+  }
+  
+  .quick-stats {
+    gap: 30px;
+    flex-wrap: wrap;
+  }
+  
+  .stat-number {
+    font-size: 36px;
+  }
+}
+
+@media (max-width: 480px) {
+  .user-info {
+    gap: 8px;
+  }
+  
+  .user-name {
+    display: none;
+  }
+  
+  .avatar {
+    width: 32px;
+    height: 32px;
+  }
+}

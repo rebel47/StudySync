@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to StudySync</title>
+    <link rel="preconnect" href="https://fonts.gstatic.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="landing.css">
+</head>
+<body>
+    <div class="landing-container">
+        <header class="landing-header">
+            <div class="brand">StudySync</div>
+            <div class="user-info">
+                <img id="user-avatar" class="avatar" alt="User avatar" />
+                <span id="user-display-name" class="user-name"></span>
+                <button id="sign-out-btn" class="btn ghost">Sign out</button>
+            </div>
+        </header>
+
+        <main class="landing-main">
+            <div class="welcome-section">
+                <h1 class="welcome-title">Welcome to StudySync!</h1>
+                <p class="welcome-subtitle">Your collaborative study companion with real-time features</p>
+            </div>
+
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">🎯</div>
+                    <h3>Collaborative Sessions</h3>
+                    <p>Create or join study rooms with friends. Share session codes and study together in real-time.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">⏰</div>
+                    <h3>Pomodoro Timer</h3>
+                    <p>25-minute focus sessions with breaks. Beautiful animated progress ring and audio notifications.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">💬</div>
+                    <h3>Study Chat</h3>
+                    <p>Built-in messaging with your study partners. Real-time communication without distractions.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">🎨</div>
+                    <h3>Focus Mode</h3>
+                    <p>Distraction-free fullscreen mode with zen-like interface for deep concentration.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">📝</div>
+                    <h3>Personal Notes</h3>
+                    <p>Create, edit, and sync your notes to the cloud. Your personal study companion.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">🔒</div>
+                    <h3>Secure & Private</h3>
+                    <p>Your data is protected with advanced security rules. Notes are private to you only.</p>
+                </div>
+            </div>
+
+            <div class="cta-section">
+                <h2>Ready to boost your productivity?</h2>
+                <p>Join study sessions with friends or start your focused study time right now!</p>
+                <div class="cta-buttons">
+                    <button id="start-studying-btn" class="btn primary large">Start Studying</button>
+                    <button id="learn-more-btn" class="btn ghost large">Learn More</button>
+                </div>
+            </div>
+
+            <div class="quick-stats">
+                <div class="stat">
+                    <div class="stat-number">25</div>
+                    <div class="stat-label">Minute Focus Sessions</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-number">∞</div>
+                    <div class="stat-label">Study Sessions</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-number">🔥</div>
+                    <div class="stat-label">Productivity Boost</div>
+                </div>
+            </div>
+        </main>
+
+        <footer class="landing-footer">
+            <p>Built with ❤️ for productive studying</p>
+        </footer>
+    </div>
+
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+    
+    <script src="landing.js"></script>
+</body>
+</html>
