@@ -522,11 +522,10 @@ function updateTimerProgress() {
 }
 
 async function startTimer() {
-  if (!state.session && !confirm('Start timer without a session?')) return;
-  
   state.timer.isRunning = true;
   state.timer.isPaused = false;
   
+  // If in a session, sync with other participants
   if (state.session) {
     await rtdb.ref(`sessions/${state.session}/timer`).update({
       isRunning: true,
