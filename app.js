@@ -210,11 +210,13 @@ auth.onAuthStateChanged(user => {
     userName.classList.toggle('hidden', !user.displayName && !user.email);
     listenNotes();
     
-    // Check for URL actions (like joining a session)
+    // Check for URL actions (like joining a session or starting study)
     const urlParams = new URLSearchParams(window.location.search);
     const action = urlParams.get('action');
     if (action === 'join') {
       showJoinModal();
+    } else if (action === 'start') {
+      showStartStudyModal();
     }
   } else {
     // Redirect to landing page if not signed in
@@ -405,6 +407,55 @@ function hideJoinModal() {
   joinModal.classList.add('hidden');
   sessionCodeInput.value = '';
 }
+
+// Start Study Modal functions
+const startStudyModal = document.getElementById('start-study-modal');
+const studySoloBtn = document.getElementById('study-solo-btn');
+const createRoomBtn = document.getElementById('create-room-btn');
+const joinRoomBtn = document.getElementById('join-room-btn');
+const cancelStartBtn = document.getElementById('cancel-start');
+
+function showStartStudyModal() {
+  startStudyModal.classList.remove('hidden');
+}
+
+function hideStartStudyModal() {
+  startStudyModal.classList.add('hidden');
+}
+
+// Event listeners for start study modal
+if (studySoloBtn) {
+  studySoloBtn.addEventListener('click', () => {
+    hideStartStudyModal();
+    // Just start studying solo without creating a session
+    console.log('Starting solo study mode');
+  });
+}
+
+if (createRoomBtn) {
+  createRoomBtn.addEventListener('click', () => {
+    hideStartStudyModal();
+    createSession();
+  });
+}
+
+if (joinRoomBtn) {
+  joinRoomBtn.addEventListener('click', () => {
+    hideStartStudyModal();
+    showJoinModal();
+  });
+}
+
+if (cancelStartBtn) {
+  cancelStartBtn.addEventListener('click', hideStartStudyModal);
+}
+
+// Close modal when clicking outside
+startStudyModal.addEventListener('click', (e) => {
+  if (e.target === startStudyModal) {
+    hideStartStudyModal();
+  }
+});
 
 function listenToSession(sessionCode) {
   const sessionRef = rtdb.ref(`sessions/${sessionCode}`);

@@ -64,7 +64,7 @@ if (signOutBtn) {
 
 if (startStudyingBtn) {
     startStudyingBtn.addEventListener('click', () => {
-        window.location.href = 'app.html';
+        window.location.href = 'app.html?action=start';
     });
 }
 
