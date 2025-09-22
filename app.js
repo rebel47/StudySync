@@ -457,6 +457,7 @@ async function leaveSession() {
     hideSessionInfo();
     hideChatToggle();
     if (window.sessionListener) window.sessionListener();
+    cleanupChat();
   } catch (err) {
     console.error(err);
   }
@@ -800,6 +801,101 @@ function updateUnreadCount() {
   }
 }
 
+function listenToChat() {
+  if (!state.session) return;
+  
+  const messagesRef = rtdb.ref(`sessions/${state.session}/messages`);
+  
+  if (window.chatListener) window.chatListener();
+  window.chatListener = messagesRef.on('child_added', (snapshot) => {
+    const message = snapshot.val();
+    if (!message) return;
+    
+    // Add message to chat
+    const messageEl = document.createElement('div');
+    messageEl.className = 'chat-message';
+    
+    const isOwnMessage = message.userId === state.user.uid;
+    if (isOwnMessage) {
+      messageEl.classList.add('own-message');
+    }
+    
+    messageEl.innerHTML = `
+      <div class="message-sender">${escapeHtml(message.sender || 'Unknown')}</div>
+      <div class="message-text">${escapeHtml(message.text || '')}</div>
+      <div class="message-time">${formatMessageTime(message.timestamp)}</div>
+    `;
+    
+    chatMessages.appendChild(messageEl);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+    
+    // Handle unread count
+    if (!state.chat.isOpen && !isOwnMessage) {
+      state.chat.unreadCount++;
+      updateUnreadCount();
+      
+      // Show browser notification
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification(`New message from ${message.sender}`, {
+          body: message.text,
+          icon: '/favicon.ico' // Add if you have a favicon
+        });
+      }
+    }
+  });
+}
+
+function formatMessageTime(timestamp) {
+  if (!timestamp) return '';
+  const date = new Date(timestamp);
+  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+// Enhanced send message function with better error handling
+async function sendMessage(text) {
+  if (!state.session || !text.trim()) return;
+  
+  if (!messageRateLimit.canSendMessage()) {
+    alert('You are sending messages too quickly. Please slow down.');
+    return;
+  }
+  
+  // Sanitize message
+  const sanitizedText = text.trim().substring(0, 200);
+  
+  try {
+    await rtdb.ref(`sessions/${state.session}/messages`).push({
+      sender: state.chat.username,
+      text: sanitizedText,
+      timestamp: firebase.database.ServerValue.TIMESTAMP,
+      userId: state.user.uid
+    });
+    
+    messageRateLimit.recordMessage();
+    chatInput.value = '';
+  } catch (err) {
+    console.error('Error sending message:', err);
+    if (err.code === 'PERMISSION_DENIED') {
+      alert('Unable to send message. Make sure you are in a session.');
+    } else {
+      alert('Failed to send message. Please try again.');
+    }
+  }
+}
+
+// Clean up chat when leaving session
+function cleanupChat() {
+  if (window.chatListener) {
+    window.chatListener();
+    window.chatListener = null;
+  }
+  
+  // Clear chat messages
+  chatMessages.innerHTML = '';
+  state.chat.unreadCount = 0;
+  updateUnreadCount();
+}
+
 // Enhanced security and cleanup functions
 
 // Auto-cleanup old sessions (client-side helper)
@@ -865,38 +961,6 @@ const messageRateLimit = {
   }
 };
 
-// Enhanced send message with rate limiting
-async function sendMessage(text) {
-  if (!state.session || !text.trim()) return;
-  
-  if (!messageRateLimit.canSendMessage()) {
-    alert('You are sending messages too quickly. Please slow down.');
-    return;
-  }
-  
-  // Sanitize message
-  const sanitizedText = text.trim().substring(0, 200);
-  
-  try {
-    await rtdb.ref(`sessions/${state.session}/messages`).push({
-      sender: state.chat.username,
-      text: sanitizedText,
-      timestamp: firebase.database.ServerValue.TIMESTAMP,
-      userId: state.user.uid
-    });
-    
-    messageRateLimit.recordMessage();
-    chatInput.value = '';
-  } catch (err) {
-    console.error(err);
-    if (err.code === 'PERMISSION_DENIED') {
-      alert('Rate limit exceeded. Please wait before sending another message.');
-    } else {
-      alert('Failed to send message');
-    }
-  }
-}
-
 // Run cleanup on app start (only once per session)
 if (!sessionStorage.getItem('cleanupRun')) {
   setTimeout(() => {
@@ -929,6 +993,12 @@ closeChatBtn?.addEventListener('click', toggleChat);
 chatForm?.addEventListener('submit', (e) => {
   e.preventDefault();
   sendMessage(chatInput.value);
+});
+
+// Add chat input event for auto-resize
+chatInput?.addEventListener('input', (e) => {
+  e.target.style.height = 'auto';
+  e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
 });
 
 // Keyboard shortcuts
