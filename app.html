@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StudySync - Study App</title>
+    <link rel="preconnect" href="https://fonts.gstatic.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header class="app-header">
+        <div class="brand">StudySync</div>
+        <div class="actions">
+            <div id="user-area" class="user-area">
+                <img id="user-photo" class="avatar hidden" alt="User avatar" />
+                <span id="user-name" class="user-name hidden"></span>
+                <button id="sign-in-btn" class="btn ghost">Sign in</button>
+                <button id="sign-out-btn" class="btn ghost hidden">Sign out</button>
+            </div>
+        </div>
+    </header>
+
+    <main class="container">
+        <!-- Study Session Panel -->
+        <section class="panel">
+            <div class="panel-header">
+                <h1>Study Session</h1>
+                <div class="session-controls">
+                    <button id="create-session-btn" class="btn primary">Create Room</button>
+                    <button id="join-session-btn" class="btn ghost">Join Room</button>
+                    <button id="leave-session-btn" class="btn ghost hidden">Leave Room</button>
+                </div>
+            </div>
+
+            <div id="session-area" class="session-area">
+                <div id="session-info" class="session-info hidden">
+                    <div class="session-meta">
+                        <span id="session-id" class="session-id"></span>
+                        <span id="participant-count" class="participant-count">1 participant</span>
+                    </div>
+                </div>
+
+                <!-- Pomodoro Timer -->
+                <div class="timer-container">
+                    <div id="timer-display" class="timer-display">
+                        <div class="timer-ring">
+                            <svg class="timer-svg" viewBox="0 0 120 120">
+                                <circle class="timer-bg" cx="60" cy="60" r="54" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="8"/>
+                                <circle id="timer-progress" class="timer-progress" cx="60" cy="60" r="54" fill="none" stroke="url(#gradient)" stroke-width="8" stroke-linecap="round" transform="rotate(-90 60 60)"/>
+                                <defs>
+                                    <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                                        <stop offset="0%" style="stop-color:#7c5cff"/>
+                                        <stop offset="100%" style="stop-color:#00d4ff"/>
+                                    </linearGradient>
+                                </defs>
+                            </svg>
+                        </div>
+                        <div class="timer-content">
+                            <div id="timer-time" class="timer-time">25:00</div>
+                            <div id="timer-mode" class="timer-mode">Focus</div>
+                        </div>
+                    </div>
+                    <div class="timer-controls">
+                        <button id="start-timer" class="btn primary">Start</button>
+                        <button id="pause-timer" class="btn ghost hidden">Pause</button>
+                        <button id="reset-timer" class="btn ghost">Reset</button>
+                        <button id="focus-mode-btn" class="btn ghost">Focus Mode</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Notes Panel -->
+        <section class="panel">
+            <div class="panel-header">
+                <h1>Notes</h1>
+                <button id="add-note-btn" class="btn primary">+ New</button>
+            </div>
+
+            <div id="notes-grid" class="notes-grid">
+                <!-- notes will render here -->
+                <div id="loading" class="loading hidden">Loading…</div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Chat Panel -->
+    <div id="chat-panel" class="chat-panel hidden">
+        <div class="chat-header">
+            <h3>Study Chat</h3>
+            <button id="close-chat" class="btn ghost small">×</button>
+        </div>
+        <div id="chat-messages" class="chat-messages"></div>
+        <form id="chat-form" class="chat-form">
+            <input id="chat-input" type="text" placeholder="Type a message..." maxlength="200" />
+            <button type="submit" class="btn primary small">Send</button>
+        </form>
+    </div>
+
+    <!-- Chat Toggle -->
+    <button id="chat-toggle" class="chat-toggle hidden">
+        💬 <span id="unread-count" class="unread-count hidden">0</span>
+    </button>
+
+    <!-- Focus Mode Overlay -->
+    <div id="focus-mode" class="focus-mode hidden">
+        <div class="focus-timer">
+            <div class="focus-timer-ring">
+                <svg class="timer-svg" viewBox="0 0 200 200">
+                    <circle class="timer-bg" cx="100" cy="100" r="90" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="12"/>
+                    <circle id="focus-timer-progress" class="timer-progress" cx="100" cy="100" r="90" fill="none" stroke="url(#gradient)" stroke-width="12" stroke-linecap="round" transform="rotate(-90 100 100)"/>
+                </svg>
+            </div>
+            <div class="focus-timer-content">
+                <div id="focus-timer-time" class="focus-timer-time">25:00</div>
+                <div id="focus-timer-mode" class="focus-timer-mode">Focus</div>
+            </div>
+        </div>
+        <div class="focus-controls">
+            <button id="focus-start" class="btn primary large">Start</button>
+            <button id="focus-pause" class="btn ghost large hidden">Pause</button>
+            <button id="focus-reset" class="btn ghost large">Reset</button>
+        </div>
+        <div class="focus-exit">Press ESC to exit focus mode</div>
+    </div>
+
+    <!-- Join Session Modal -->
+    <div id="join-modal" class="modal hidden">
+        <div class="modal-content">
+            <h3>Join Study Session</h3>
+            <input id="session-code-input" type="text" placeholder="Enter session code" class="session-input" />
+            <div class="modal-actions">
+                <button id="cancel-join" class="btn ghost">Cancel</button>
+                <button id="confirm-join" class="btn primary">Join</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add / Edit Note Drawer -->
+    <div id="drawer" class="drawer hidden">
+        <form id="note-form" class="note-form">
+            <label class="field">
+                <span class="label">Title</span>
+                <input id="note-title" type="text" placeholder="Short, clear title" required />
+            </label>
+            <label class="field">
+                <span class="label">Content</span>
+                <textarea id="note-content" rows="6" placeholder="Write your note..." required></textarea>
+            </label>
+            <div class="form-actions">
+                <button type="button" id="cancel-btn" class="btn ghost">Cancel</button>
+                <button type="submit" class="btn primary">Save</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Firebase SDKs (compat) -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+
+    <script src="app.js"></script>
+</body>
+</html>

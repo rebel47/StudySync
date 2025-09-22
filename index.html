@@ -1,166 +1,156 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-	<meta charset="utf-8" />
-	<meta name="viewport" content="width=device-width,initial-scale=1" />
-	<title>StudySync</title>
-	<link rel="preconnect" href="https://fonts.gstatic.com">
-	<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
-	<link rel="stylesheet" href="styles.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StudySync - Collaborative Study App</title>
+    <link rel="preconnect" href="https://fonts.gstatic.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="landing.css">
 </head>
 <body>
-	<header class="app-header">
-		<div class="brand">StudySync</div>
-		<div class="actions">
-			<div id="user-area" class="user-area">
-				<img id="user-photo" class="avatar hidden" alt="User avatar" />
-				<span id="user-name" class="user-name hidden"></span>
-				<button id="sign-in-btn" class="btn ghost">Sign in</button>
-				<button id="sign-out-btn" class="btn ghost hidden">Sign out</button>
-			</div>
-		</div>
-	</header>
+    <div class="landing-container">
+        <!-- Not Signed In State -->
+        <div id="landing-page" class="landing-page">
+            <header class="landing-header">
+                <div class="brand">StudySync</div>
+                <div class="auth-actions">
+                    <button id="sign-in-btn" class="btn primary">Sign in with Google</button>
+                </div>
+            </header>
 
-	<main class="container">
-		<!-- Study Session Panel -->
-		<section class="panel">
-			<div class="panel-header">
-				<h1>Study Session</h1>
-				<div class="session-controls">
-					<button id="create-session-btn" class="btn primary">Create Room</button>
-					<button id="join-session-btn" class="btn ghost">Join Room</button>
-					<button id="leave-session-btn" class="btn ghost hidden">Leave Room</button>
-				</div>
-			</div>
+            <main class="landing-main">
+                <div class="hero-section">
+                    <h1 class="hero-title">Your Collaborative Study Companion</h1>
+                    <p class="hero-subtitle">Real-time study sessions, Pomodoro timers, notes, and chat - all in one place</p>
+                    <div class="hero-actions">
+                        <button id="get-started-btn" class="btn primary large">Get Started Free</button>
+                        <button id="learn-more-btn" class="btn ghost large">Learn More</button>
+                    </div>
+                </div>
 
-			<div id="session-area" class="session-area">
-				<div id="session-info" class="session-info hidden">
-					<div class="session-meta">
-						<span id="session-id" class="session-id"></span>
-						<span id="participant-count" class="participant-count">1 participant</span>
-					</div>
-				</div>
+                <div class="features-grid">
+                    <div class="feature-card">
+                        <div class="feature-icon">🎯</div>
+                        <h3>Collaborative Sessions</h3>
+                        <p>Create or join study rooms with friends. Share session codes and study together in real-time.</p>
+                    </div>
 
-				<!-- Pomodoro Timer -->
-				<div class="timer-container">
-					<div id="timer-display" class="timer-display">
-						<div class="timer-ring">
-							<svg class="timer-svg" viewBox="0 0 120 120">
-								<circle class="timer-bg" cx="60" cy="60" r="54" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="8"/>
-								<circle id="timer-progress" class="timer-progress" cx="60" cy="60" r="54" fill="none" stroke="url(#gradient)" stroke-width="8" stroke-linecap="round" transform="rotate(-90 60 60)"/>
-								<defs>
-									<linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="0%">
-										<stop offset="0%" style="stop-color:#7c5cff"/>
-										<stop offset="100%" style="stop-color:#00d4ff"/>
-									</linearGradient>
-								</defs>
-							</svg>
-						</div>
-						<div class="timer-content">
-							<div id="timer-time" class="timer-time">25:00</div>
-							<div id="timer-mode" class="timer-mode">Focus</div>
-						</div>
-					</div>
-					<div class="timer-controls">
-						<button id="start-timer" class="btn primary">Start</button>
-						<button id="pause-timer" class="btn ghost hidden">Pause</button>
-						<button id="reset-timer" class="btn ghost">Reset</button>
-						<button id="focus-mode-btn" class="btn ghost">Focus Mode</button>
-					</div>
-				</div>
-			</div>
-		</section>
+                    <div class="feature-card">
+                        <div class="feature-icon">⏰</div>
+                        <h3>Pomodoro Timer</h3>
+                        <p>25-minute focus sessions with breaks. Beautiful animated progress ring and audio notifications.</p>
+                    </div>
 
-		<!-- Notes Panel -->
-		<section class="panel">
-			<div class="panel-header">
-				<h1>Notes</h1>
-				<button id="add-note-btn" class="btn primary">+ New</button>
-			</div>
+                    <div class="feature-card">
+                        <div class="feature-icon">💬</div>
+                        <h3>Study Chat</h3>
+                        <p>Built-in messaging with your study partners. Real-time communication without distractions.</p>
+                    </div>
 
-			<div id="notes-grid" class="notes-grid">
-				<!-- notes will render here -->
-				<div id="loading" class="loading hidden">Loading…</div>
-			</div>
-		</section>
-	</main>
+                    <div class="feature-card">
+                        <div class="feature-icon">🎨</div>
+                        <h3>Focus Mode</h3>
+                        <p>Distraction-free fullscreen mode with zen-like interface for deep concentration.</p>
+                    </div>
 
-	<!-- Chat Panel -->
-	<div id="chat-panel" class="chat-panel hidden">
-		<div class="chat-header">
-			<h3>Study Chat</h3>
-			<button id="close-chat" class="btn ghost small">×</button>
-		</div>
-		<div id="chat-messages" class="chat-messages"></div>
-		<form id="chat-form" class="chat-form">
-			<input id="chat-input" type="text" placeholder="Type a message..." maxlength="200" />
-			<button type="submit" class="btn primary small">Send</button>
-		</form>
-	</div>
+                    <div class="feature-card">
+                        <div class="feature-icon">📝</div>
+                        <h3>Personal Notes</h3>
+                        <p>Create, edit, and sync your notes to the cloud. Your personal study companion.</p>
+                    </div>
 
-	<!-- Chat Toggle -->
-	<button id="chat-toggle" class="chat-toggle hidden">
-		💬 <span id="unread-count" class="unread-count hidden">0</span>
-	</button>
+                    <div class="feature-card">
+                        <div class="feature-icon">🔒</div>
+                        <h3>Secure & Private</h3>
+                        <p>Your data is protected with advanced security rules. Notes are private to you only.</p>
+                    </div>
+                </div>
 
-	<!-- Focus Mode Overlay -->
-	<div id="focus-mode" class="focus-mode hidden">
-		<div class="focus-timer">
-			<div class="focus-timer-ring">
-				<svg class="timer-svg" viewBox="0 0 200 200">
-					<circle class="timer-bg" cx="100" cy="100" r="90" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="12"/>
-					<circle id="focus-timer-progress" class="timer-progress" cx="100" cy="100" r="90" fill="none" stroke="url(#gradient)" stroke-width="12" stroke-linecap="round" transform="rotate(-90 100 100)"/>
-				</svg>
-			</div>
-			<div class="focus-timer-content">
-				<div id="focus-timer-time" class="focus-timer-time">25:00</div>
-				<div id="focus-timer-mode" class="focus-timer-mode">Focus</div>
-			</div>
-		</div>
-		<div class="focus-controls">
-			<button id="focus-start" class="btn primary large">Start</button>
-			<button id="focus-pause" class="btn ghost large hidden">Pause</button>
-			<button id="focus-reset" class="btn ghost large">Reset</button>
-		</div>
-		<div class="focus-exit">Press ESC to exit focus mode</div>
-	</div>
+                <div class="quick-stats">
+                    <div class="stat">
+                        <div class="stat-number">25</div>
+                        <div class="stat-label">Minute Focus Sessions</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-number">∞</div>
+                        <div class="stat-label">Study Sessions</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-number">🔥</div>
+                        <div class="stat-label">Productivity Boost</div>
+                    </div>
+                </div>
+            </main>
 
-	<!-- Join Session Modal -->
-	<div id="join-modal" class="modal hidden">
-		<div class="modal-content">
-			<h3>Join Study Session</h3>
-			<input id="session-code-input" type="text" placeholder="Enter session code" class="session-input" />
-			<div class="modal-actions">
-				<button id="cancel-join" class="btn ghost">Cancel</button>
-				<button id="confirm-join" class="btn primary">Join</button>
-			</div>
-		</div>
-	</div>
+            <footer class="landing-footer">
+                <p>Built with ❤️ for productive studying</p>
+            </footer>
+        </div>
 
-	<!-- Add / Edit Note Drawer -->
-	<div id="drawer" class="drawer hidden">
-		<form id="note-form" class="note-form">
-			<label class="field">
-				<span class="label">Title</span>
-				<input id="note-title" type="text" placeholder="Short, clear title" required />
-			</label>
-			<label class="field">
-				<span class="label">Content</span>
-				<textarea id="note-content" rows="6" placeholder="Write your note..." required></textarea>
-			</label>
-			<div class="form-actions">
-				<button type="button" id="cancel-btn" class="btn ghost">Cancel</button>
-				<button type="submit" class="btn primary">Save</button>
-			</div>
-		</form>
-	</div>
+        <!-- Signed In Welcome State -->
+        <div id="welcome-page" class="welcome-page hidden">
+            <header class="landing-header">
+                <div class="brand">StudySync</div>
+                <div class="user-info">
+                    <img id="user-avatar" class="avatar" alt="User avatar" />
+                    <span id="user-display-name" class="user-name"></span>
+                    <button id="sign-out-btn" class="btn ghost">Sign out</button>
+                </div>
+            </header>
 
-	<!-- Firebase SDKs (compat) -->
-	<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-	<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
-	<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
-	<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+            <main class="landing-main">
+                <div class="welcome-section">
+                    <h1 class="welcome-title">Welcome back!</h1>
+                    <p class="welcome-subtitle">Ready to boost your productivity?</p>
+                </div>
 
-	<script src="app.js"></script>
+                <div class="cta-section">
+                    <h2>What would you like to do today?</h2>
+                    <div class="cta-buttons">
+                        <button id="start-studying-btn" class="btn primary large">Start Studying</button>
+                        <button id="join-session-btn" class="btn ghost large">Join Session</button>
+                    </div>
+                </div>
+
+                <div class="recent-activity">
+                    <h3>Quick Actions</h3>
+                    <div class="action-cards">
+                        <div class="action-card" onclick="window.location.href='app.html'">
+                            <div class="action-icon">📚</div>
+                            <div class="action-text">
+                                <h4>Study Solo</h4>
+                                <p>Focus mode with Pomodoro timer</p>
+                            </div>
+                        </div>
+                        <div class="action-card" onclick="window.location.href='app.html'">
+                            <div class="action-icon">👥</div>
+                            <div class="action-text">
+                                <h4>Create Room</h4>
+                                <p>Study with friends in real-time</p>
+                            </div>
+                        </div>
+                        <div class="action-card" onclick="window.location.href='app.html'">
+                            <div class="action-icon">📝</div>
+                            <div class="action-text">
+                                <h4>My Notes</h4>
+                                <p>Access your personal notes</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+
+            <footer class="landing-footer">
+                <p>Built with ❤️ for productive studying</p>
+            </footer>
+        </div>
+    </div>
+
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+    
+    <script src="landing.js"></script>
 </body>
 </html>

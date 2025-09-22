@@ -21,6 +21,7 @@ firebase.json
 .env.production.local
 config.js
 config.json
+firebase-config.local.js
 
 # API keys and secrets
 keys/
