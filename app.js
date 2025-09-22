@@ -260,12 +260,36 @@ async function createSession() {
     return;
   }
   
-  const sessionCode = generateSessionCode();
-  const username = generateUsername();
-  
   try {
+    // Check rate limiting
+    const userLimitsRef = rtdb.ref(`userLimits/${state.user.uid}`);
+    const limitsSnapshot = await userLimitsRef.once('value');
+    const limits = limitsSnapshot.val() || {};
+    
+    const now = Date.now();
+    const lastCreated = limits.lastSessionCreated || 0;
+    const sessionsToday = limits.sessionsCreated || 0;
+    
+    // Rate limit: max 10 sessions per day, 1 per minute
+    const oneDay = 24 * 60 * 60 * 1000;
+    const oneMinute = 60 * 1000;
+    
+    if (now - lastCreated < oneMinute) {
+      alert('Please wait a minute before creating another session.');
+      return;
+    }
+    
+    if (sessionsToday >= 10 && (now - lastCreated) < oneDay) {
+      alert('You have reached the daily limit of 10 sessions. Please try again tomorrow.');
+      return;
+    }
+    
+    const sessionCode = generateSessionCode();
+    const username = generateUsername();
+    
     console.log('Creating session with code:', sessionCode);
     
+    // Create session with validation
     await rtdb.ref(`sessions/${sessionCode}`).set({
       host: state.user.uid,
       created: firebase.database.ServerValue.TIMESTAMP,
@@ -283,6 +307,13 @@ async function createSession() {
       }
     });
     
+    // Update user limits
+    const newSessionsCount = (now - lastCreated) < oneDay ? sessionsToday + 1 : 1;
+    await userLimitsRef.set({
+      sessionsCreated: newSessionsCount,
+      lastSessionCreated: now
+    });
+    
     console.log('Session created successfully');
     state.session = sessionCode;
     state.chat.username = username;
@@ -291,7 +322,11 @@ async function createSession() {
     showChatToggle();
   } catch (err) {
     console.error('Error creating session:', err);
-    alert(`Failed to create session: ${err.message}`);
+    if (err.code === 'PERMISSION_DENIED') {
+      alert('Rate limit exceeded. Please try again later.');
+    } else {
+      alert(`Failed to create session: ${err.message}`);
+    }
   }
 }
 
@@ -636,61 +671,109 @@ function updateUnreadCount() {
   }
 }
 
+// Enhanced security and cleanup functions
+
+// Auto-cleanup old sessions (client-side helper)
+async function cleanupOldSessions() {
+  if (!state.user || !rtdb) return;
+  
+  try {
+    const sessionsRef = rtdb.ref('sessions');
+    const snapshot = await sessionsRef.once('value');
+    const sessions = snapshot.val() || {};
+    
+    const now = Date.now();
+    const sixHours = 6 * 60 * 60 * 1000;
+    
+    Object.keys(sessions).forEach(async (sessionId) => {
+      const session = sessions[sessionId];
+      const created = session.created || 0;
+      
+      // Remove sessions older than 6 hours with no activity
+      if (now - created > sixHours) {
+        const participants = Object.keys(session.participants || {});
+        if (participants.length === 0 || (participants.length === 1 && participants[0] === session.host)) {
+          console.log('Cleaning up old session:', sessionId);
+          await rtdb.ref(`sessions/${sessionId}`).remove();
+        }
+      }
+    });
+  } catch (err) {
+    console.log('Cleanup error:', err);
+  }
+}
+
+// Rate limiting for chat messages
+const messageRateLimit = {
+  lastMessage: 0,
+  messageCount: 0,
+  
+  canSendMessage() {
+    const now = Date.now();
+    const oneMinute = 60 * 1000;
+    
+    // Reset counter every minute
+    if (now - this.lastMessage > oneMinute) {
+      this.messageCount = 0;
+    }
+    
+    // Max 30 messages per minute
+    if (this.messageCount >= 30) {
+      return false;
+    }
+    
+    // Min 1 second between messages
+    if (now - this.lastMessage < 1000) {
+      return false;
+    }
+    
+    return true;
+  },
+  
+  recordMessage() {
+    this.lastMessage = Date.now();
+    this.messageCount++;
+  }
+};
+
+// Enhanced send message with rate limiting
 async function sendMessage(text) {
   if (!state.session || !text.trim()) return;
+  
+  if (!messageRateLimit.canSendMessage()) {
+    alert('You are sending messages too quickly. Please slow down.');
+    return;
+  }
+  
+  // Sanitize message
+  const sanitizedText = text.trim().substring(0, 200);
   
   try {
     await rtdb.ref(`sessions/${state.session}/messages`).push({
       sender: state.chat.username,
-      text: text.trim(),
+      text: sanitizedText,
       timestamp: firebase.database.ServerValue.TIMESTAMP,
       userId: state.user.uid
     });
     
+    messageRateLimit.recordMessage();
     chatInput.value = '';
   } catch (err) {
     console.error(err);
-    alert('Failed to send message');
+    if (err.code === 'PERMISSION_DENIED') {
+      alert('Rate limit exceeded. Please wait before sending another message.');
+    } else {
+      alert('Failed to send message');
+    }
   }
 }
 
-function listenToChat() {
-  if (!state.session) return;
-  
-  const messagesRef = rtdb.ref(`sessions/${state.session}/messages`).limitToLast(50);
-  
-  if (window.chatListener) window.chatListener();
-  window.chatListener = messagesRef.on('child_added', (snapshot) => {
-    const message = snapshot.val();
-    displayMessage(message);
-    
-    // Only increment unread count if chat is closed and message is from another user
-    if (!state.chat.isOpen && message.userId !== state.user.uid) {
-      state.chat.unreadCount++;
-      updateUnreadCount();
-      
-      // Optional: Show browser notification
-      if ('Notification' in window && Notification.permission === 'granted') {
-        new Notification('New Study Chat Message', {
-          body: `${message.sender}: ${message.text}`,
-          icon: '/favicon.ico',
-          tag: 'studysync-chat'
-        });
-      }
-    }
-  });
-}
-
-function displayMessage(message) {
-  const messageEl = document.createElement('div');
-  messageEl.className = 'chat-message';
-  messageEl.innerHTML = `
-    <div class="chat-sender">${escapeHtml(message.sender)}</div>
-    <div class="chat-text">${escapeHtml(message.text)}</div>
-  `;
-  
-  chatMessages.appendChild(messageEl);
-  chatMessages.scrollTop = chatMessages.scrollHeight;
+// Run cleanup on app start (only once per session)
+if (!sessionStorage.getItem('cleanupRun')) {
+  setTimeout(() => {
+    cleanupOldSessions();
+    sessionStorage.setItem('cleanupRun', 'true');
+  }, 5000);
 }
 
 // Event Listeners
