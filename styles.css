@@ -263,6 +263,7 @@ html,body { height:100%; margin:0; background: linear-gradient(180deg,#071124 0%
   box-shadow: 0 0 0 2px rgba(124,92,255,0.2); 
 }
 
+
 .chat-form button { 
   padding: 10px 16px; 
   border-radius: 20px; 
