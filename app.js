@@ -811,7 +811,7 @@ function handleTimerComplete() {
     state.timer.isRunning = false;
     
     const breakType = shouldBeLongBreak ? 'Long' : 'Short';
-    alert(`Pomodoro complete! Time for a ${breakType.toLowerCase()} break (${nextDuration} minutes).`);
+    //alert(`Pomodoro complete! Time for a ${breakType.toLowerCase()} break (${nextDuration} minutes).`);
     
     if (timerSettings.autoStartBreaks) {
       setTimeout(() => {
