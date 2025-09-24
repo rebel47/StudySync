@@ -824,7 +824,7 @@ function handleTimerComplete() {
     state.timer.timeLeft = timerSettings.pomodoro * 60;
     state.timer.isRunning = false;
     
-    alert(`Break complete! Time to focus (${timerSettings.pomodoro} minutes).`);
+    //alert(`Break complete! Time to focus (${timerSettings.pomodoro} minutes).`);
     
     if (timerSettings.autoStartPomodoros) {
       setTimeout(() => {
