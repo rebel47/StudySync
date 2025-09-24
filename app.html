@@ -9,17 +9,22 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <header class="app-header">
-        <div class="brand">StudySync</div>
-        <div class="actions">
-            <div id="user-area" class="user-area">
-                <img id="user-photo" class="avatar hidden" alt="User avatar" />
-                <span id="user-name" class="user-name hidden"></span>
-                <button id="sign-in-btn" class="btn ghost">Sign in</button>
-                <button id="sign-out-btn" class="btn ghost hidden">Sign out</button>
-            </div>
+<header class="app-header">
+    <div class="brand">StudySync</div>
+    <div class="actions">
+        <div id="user-area" class="user-area">
+            <img id="user-photo" class="avatar hidden" alt="User avatar" />
+            <span id="user-name" class="user-name hidden"></span>
+            <button id="sign-in-btn" class="btn ghost">Sign in</button>
+            <button id="sign-out-btn" class="btn ghost hidden">Sign out</button>
         </div>
-    </header>
+        <!-- Add settings icon after user area -->
+        <button id="settings-btn" class="btn ghost settings-btn" title="Timer Settings">
+            ⚙️
+        </button>
+    </div>
+</header>
+
 
     <main class="container">
         <!-- Study Session Panel -->
@@ -189,7 +194,71 @@
             </div>
         </form>
     </div>
+<div id="settings-modal" class="modal hidden">
+    <div class="modal-content settings-modal-content">
+        <div class="modal-header">
+            <h3>Timer Settings</h3>
+            <button id="close-settings" class="btn ghost small">×</button>
+        </div>
+        
+        <div class="settings-sections">
+            <!-- Time Settings -->
+            <div class="settings-section">
+                <h4>⏰ Timer Durations (minutes)</h4>
+                <div class="time-inputs">
+                    <div class="time-input-group">
+                        <label>Pomodoro</label>
+                        <input id="pomodoro-time" type="number" min="1" max="60" value="25" class="time-input" />
+                    </div>
+                    <div class="time-input-group">
+                        <label>Short Break</label>
+                        <input id="short-break-time" type="number" min="1" max="30" value="5" class="time-input" />
+                    </div>
+                    <div class="time-input-group">
+                        <label>Long Break</label>
+                        <input id="long-break-time" type="number" min="1" max="60" value="15" class="time-input" />
+                    </div>
+                </div>
+            </div>
 
+            <!-- Auto Start Settings -->
+            <div class="settings-section">
+                <h4>🔄 Auto Start</h4>
+                <div class="toggle-group">
+                    <label class="toggle-item">
+                        <span>Auto Start Breaks</span>
+                        <div class="toggle-switch">
+                            <input id="auto-start-breaks" type="checkbox" />
+                            <div class="toggle-slider"></div>
+                        </div>
+                    </label>
+                    <label class="toggle-item">
+                        <span>Auto Start Pomodoros</span>
+                        <div class="toggle-switch">
+                            <input id="auto-start-pomodoros" type="checkbox" />
+                            <div class="toggle-slider"></div>
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Long Break Interval -->
+            <div class="settings-section">
+                <h4>📊 Long Break Interval</h4>
+                <div class="interval-setting">
+                    <label>Long break every</label>
+                    <input id="long-break-interval" type="number" min="2" max="10" value="4" class="interval-input" />
+                    <span>pomodoros</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal-actions">
+            <button id="reset-settings" class="btn ghost">Reset to Default</button>
+            <button id="save-settings" class="btn primary">Save Settings</button>
+        </div>
+    </div>
+</div>
     <!-- Firebase SDKs (compat) -->
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>

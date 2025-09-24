@@ -18,6 +18,17 @@ const state = {
   }
 };
 
+// Timer Settings State
+const timerSettings = {
+  pomodoro: 25,
+  shortBreak: 5,
+  longBreak: 15,
+  autoStartBreaks: false,
+  autoStartPomodoros: false,
+  longBreakInterval: 4,
+  completedPomodoros: 0
+};
+
 // Firebase initialization - replace the config object with values from your README.md
 const firebaseConfig = {
     apiKey: "AIzaSyCHOhq4c1FxOU8MqgZmg58VVOPBe-0NsGE",
@@ -95,6 +106,19 @@ const chatMessages = document.getElementById('chat-messages');
 const chatForm = document.getElementById('chat-form');
 const chatInput = document.getElementById('chat-input');
 const unreadCountEl = document.getElementById('unread-count');
+
+// Settings elements
+const settingsBtn = document.getElementById('settings-btn');
+const settingsModal = document.getElementById('settings-modal');
+const closeSettingsBtn = document.getElementById('close-settings');
+const pomodoroTimeInput = document.getElementById('pomodoro-time');
+const shortBreakTimeInput = document.getElementById('short-break-time');
+const longBreakTimeInput = document.getElementById('long-break-time');
+const autoStartBreaksInput = document.getElementById('auto-start-breaks');
+const autoStartPomodorosInput = document.getElementById('auto-start-pomodoros');
+const longBreakIntervalInput = document.getElementById('long-break-interval');
+const resetSettingsBtn = document.getElementById('reset-settings');
+const saveSettingsBtn = document.getElementById('save-settings');
 
 function setLoading(on) { if (loadingEl) loadingEl.classList.toggle('hidden', !on); }
 
@@ -313,8 +337,8 @@ async function createSession() {
       created: firebase.database.ServerValue.TIMESTAMP,
       expiresAt: now + (6 * 60 * 60 * 1000), // Auto-expire in 6 hours
       timer: {
-        timeLeft: 25 * 60,
-        mode: 'focus',
+        timeLeft: getCurrentModeDuration() * 60,
+        mode: state.timer.mode,
         isRunning: false,
         isPaused: false
       },
@@ -502,11 +526,11 @@ const joinRoomBtn = document.getElementById('join-room-btn');
 const cancelStartBtn = document.getElementById('cancel-start');
 
 function showStartStudyModal() {
-  startStudyModal.classList.remove('hidden');
+  if (startStudyModal) startStudyModal.classList.remove('hidden');
 }
 
 function hideStartStudyModal() {
-  startStudyModal.classList.add('hidden');
+  if (startStudyModal) startStudyModal.classList.add('hidden');
 }
 
 // Event listeners for start study modal
@@ -537,11 +561,13 @@ if (cancelStartBtn) {
 }
 
 // Close modal when clicking outside
-startStudyModal.addEventListener('click', (e) => {
-  if (e.target === startStudyModal) {
-    hideStartStudyModal();
-  }
-});
+if (startStudyModal) {
+  startStudyModal.addEventListener('click', (e) => {
+    if (e.target === startStudyModal) {
+      hideStartStudyModal();
+    }
+  });
+}
 
 function listenToSession(sessionCode) {
   const sessionRef = rtdb.ref(`sessions/${sessionCode}`);
@@ -574,6 +600,75 @@ function listenToSession(sessionCode) {
   });
 }
 
+// Settings Functions
+function loadSettings() {
+  const saved = localStorage.getItem('studysync-timer-settings');
+  if (saved) {
+    Object.assign(timerSettings, JSON.parse(saved));
+    updateSettingsUI();
+    // Update current timer if not running
+    if (!state.timer.isRunning) {
+      const currentDuration = getCurrentModeDuration();
+      state.timer.timeLeft = currentDuration * 60;
+      updateTimerDisplay();
+      updateTimerProgress();
+    }
+  }
+}
+
+function saveSettings() {
+  localStorage.setItem('studysync-timer-settings', JSON.stringify(timerSettings));
+}
+
+function updateSettingsUI() {
+  if (pomodoroTimeInput) pomodoroTimeInput.value = timerSettings.pomodoro;
+  if (shortBreakTimeInput) shortBreakTimeInput.value = timerSettings.shortBreak;
+  if (longBreakTimeInput) longBreakTimeInput.value = timerSettings.longBreak;
+  if (autoStartBreaksInput) autoStartBreaksInput.checked = timerSettings.autoStartBreaks;
+  if (autoStartPomodorosInput) autoStartPomodorosInput.checked = timerSettings.autoStartPomodoros;
+  if (longBreakIntervalInput) longBreakIntervalInput.value = timerSettings.longBreakInterval;
+}
+
+function resetToDefaults() {
+  timerSettings.pomodoro = 25;
+  timerSettings.shortBreak = 5;
+  timerSettings.longBreak = 15;
+  timerSettings.autoStartBreaks = false;
+  timerSettings.autoStartPomodoros = false;
+  timerSettings.longBreakInterval = 4;
+  updateSettingsUI();
+}
+
+function applySettings() {
+  if (pomodoroTimeInput) timerSettings.pomodoro = parseInt(pomodoroTimeInput.value);
+  if (shortBreakTimeInput) timerSettings.shortBreak = parseInt(shortBreakTimeInput.value);
+  if (longBreakTimeInput) timerSettings.longBreak = parseInt(longBreakTimeInput.value);
+  if (autoStartBreaksInput) timerSettings.autoStartBreaks = autoStartBreaksInput.checked;
+  if (autoStartPomodorosInput) timerSettings.autoStartPomodoros = autoStartPomodorosInput.checked;
+  if (longBreakIntervalInput) timerSettings.longBreakInterval = parseInt(longBreakIntervalInput.value);
+  
+  // Update current timer if not running
+  if (!state.timer.isRunning) {
+    const currentDuration = getCurrentModeDuration();
+    state.timer.timeLeft = currentDuration * 60;
+    updateTimerDisplay();
+    updateTimerProgress();
+  }
+  
+  saveSettings();
+}
+
+function getCurrentModeDuration() {
+  if (state.timer.mode === 'focus') {
+    return timerSettings.pomodoro;
+  } else {
+    // Determine if it should be short or long break
+    const shouldBeLongBreak = timerSettings.completedPomodoros > 0 && 
+                              timerSettings.completedPomodoros % timerSettings.longBreakInterval === 0;
+    return shouldBeLongBreak ? timerSettings.longBreak : timerSettings.shortBreak;
+  }
+}
+
 // Timer Functions
 function formatTime(seconds) {
   const mins = Math.floor(seconds / 60);
@@ -583,7 +678,12 @@ function formatTime(seconds) {
 
 function updateTimerDisplay() {
   const timeText = formatTime(state.timer.timeLeft);
-  const modeText = state.timer.mode === 'focus' ? 'Focus' : 'Break';
+  let modeText = 'Focus';
+  
+  if (state.timer.mode === 'break') {
+    const shouldBeLongBreak = timerSettings.completedPomodoros % timerSettings.longBreakInterval === 0;
+    modeText = shouldBeLongBreak ? 'Long Break' : 'Short Break';
+  }
   
   if (timerDisplay) timerDisplay.textContent = timeText;
   if (timerMode) timerMode.textContent = modeText;
@@ -592,17 +692,19 @@ function updateTimerDisplay() {
 }
 
 function updateTimerProgress() {
-  const totalTime = state.timer.mode === 'focus' ? 25 * 60 : 5 * 60;
+  const totalTime = getCurrentModeDuration() * 60;
   const progress = (totalTime - state.timer.timeLeft) / totalTime;
   const circumference = 2 * Math.PI * 54; // radius = 54
   const offset = circumference * (1 - progress);
   
   if (timerProgress) {
+    timerProgress.style.strokeDasharray = circumference;
     timerProgress.style.strokeDashoffset = offset;
   }
   if (focusTimerProgress) {
     const focusCircumference = 2 * Math.PI * 90; // radius = 90
     const focusOffset = focusCircumference * (1 - progress);
+    focusTimerProgress.style.strokeDasharray = focusCircumference;
     focusTimerProgress.style.strokeDashoffset = focusOffset;
   }
 }
@@ -616,7 +718,8 @@ async function startTimer() {
     await rtdb.ref(`sessions/${state.session}/timer`).update({
       isRunning: true,
       isPaused: false,
-      timeLeft: state.timer.timeLeft
+      timeLeft: state.timer.timeLeft,
+      mode: state.timer.mode
     });
   }
   
@@ -646,13 +749,14 @@ async function pauseTimer() {
 async function resetTimer() {
   state.timer.isRunning = false;
   state.timer.isPaused = false;
-  state.timer.timeLeft = state.timer.mode === 'focus' ? 25 * 60 : 5 * 60;
+  state.timer.timeLeft = getCurrentModeDuration() * 60;
   
   if (state.session) {
     await rtdb.ref(`sessions/${state.session}/timer`).update({
       isRunning: false,
       isPaused: false,
-      timeLeft: state.timer.timeLeft
+      timeLeft: state.timer.timeLeft,
+      mode: state.timer.mode
     });
   }
   
@@ -687,28 +791,60 @@ function startTimerInterval() {
       // Play notification sound (simple beep)
       playNotificationSound();
       
-      // Switch modes
-      const newMode = state.timer.mode === 'focus' ? 'break' : 'focus';
-      const newTimeLeft = newMode === 'focus' ? 25 * 60 : 5 * 60;
-      
-      state.timer.mode = newMode;
-      state.timer.timeLeft = newTimeLeft;
-      
-      if (state.session) {
-        await rtdb.ref(`sessions/${state.session}/timer`).update({
-          isRunning: false,
-          mode: newMode,
-          timeLeft: newTimeLeft
-        });
-      }
-      
-      updateTimerDisplay();
-      updateTimerProgress();
-      updateTimerButtons();
-      
-      alert(`${state.timer.mode === 'focus' ? 'Break' : 'Focus'} time finished! Starting ${newMode} mode.`);
+      // Handle timer completion with settings
+      handleTimerComplete();
     }
   }, 1000);
+}
+
+function handleTimerComplete() {
+  if (state.timer.mode === 'focus') {
+    // Pomodoro completed
+    timerSettings.completedPomodoros++;
+    
+    // Determine next break type
+    const shouldBeLongBreak = timerSettings.completedPomodoros % timerSettings.longBreakInterval === 0;
+    const nextDuration = shouldBeLongBreak ? timerSettings.longBreak : timerSettings.shortBreak;
+    
+    state.timer.mode = 'break';
+    state.timer.timeLeft = nextDuration * 60;
+    state.timer.isRunning = false;
+    
+    const breakType = shouldBeLongBreak ? 'Long' : 'Short';
+    alert(`Pomodoro complete! Time for a ${breakType.toLowerCase()} break (${nextDuration} minutes).`);
+    
+    if (timerSettings.autoStartBreaks) {
+      setTimeout(() => {
+        startTimer();
+      }, 1000);
+    }
+  } else {
+    // Break completed
+    state.timer.mode = 'focus';
+    state.timer.timeLeft = timerSettings.pomodoro * 60;
+    state.timer.isRunning = false;
+    
+    alert(`Break complete! Time to focus (${timerSettings.pomodoro} minutes).`);
+    
+    if (timerSettings.autoStartPomodoros) {
+      setTimeout(() => {
+        startTimer();
+      }, 1000);
+    }
+  }
+  
+  updateTimerDisplay();
+  updateTimerProgress();
+  updateTimerButtons();
+  
+  // Sync with session if in collaborative mode
+  if (state.session) {
+    rtdb.ref(`sessions/${state.session}/timer`).update({
+      isRunning: false,
+      mode: state.timer.mode,
+      timeLeft: state.timer.timeLeft
+    });
+  }
 }
 
 function playNotificationSound() {
@@ -988,15 +1124,35 @@ const messageRateLimit = {
   }
 };
 
-// Run cleanup on app start (only once per session)
-if (!sessionStorage.getItem('cleanupRun')) {
-  setTimeout(() => {
-    cleanupOldSessions();
-    sessionStorage.setItem('cleanupRun', 'true');
-  }, 5000);
-}
+// Settings Event Listeners
+settingsBtn?.addEventListener('click', () => {
+  updateSettingsUI();
+  settingsModal.classList.remove('hidden');
+});
 
-// Event Listeners
+closeSettingsBtn?.addEventListener('click', () => {
+  settingsModal.classList.add('hidden');
+});
+
+resetSettingsBtn?.addEventListener('click', () => {
+  if (confirm('Reset all settings to default values?')) {
+    resetToDefaults();
+  }
+});
+
+saveSettingsBtn?.addEventListener('click', () => {
+  applySettings();
+  settingsModal.classList.add('hidden');
+});
+
+// Close settings modal when clicking outside
+settingsModal?.addEventListener('click', (e) => {
+  if (e.target === settingsModal) {
+    settingsModal.classList.add('hidden');
+  }
+});
+
+// Main Event Listeners
 createSessionBtn?.addEventListener('click', createSession);
 joinSessionBtn?.addEventListener('click', showJoinModal);
 leaveSessionBtn?.addEventListener('click', leaveSession);
@@ -1047,9 +1203,23 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-// Initial render
-addNoteBtn.disabled = true;
-renderNotes();
-updateTimerDisplay();
-updateTimerProgress();
-updateTimerButtons();
+// Initialize app
+document.addEventListener('DOMContentLoaded', () => {
+  // Load settings first
+  loadSettings();
+  
+  // Initial render
+  addNoteBtn.disabled = true;
+  renderNotes();
+  updateTimerDisplay();
+  updateTimerProgress();
+  updateTimerButtons();
+  
+  // Run cleanup on app start (only once per session)
+  if (!sessionStorage.getItem('cleanupRun')) {
+    setTimeout(() => {
+      cleanupOldSessions();
+      sessionStorage.setItem('cleanupRun', 'true');
+    }, 5000);
+  }
+});
