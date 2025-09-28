@@ -91,8 +91,8 @@ if (learnMoreBtn) {
 function signInWithGoogle() {
     const provider = new firebase.auth.GoogleAuthProvider();
     auth.signInWithPopup(provider).catch(err => {
-        console.error('Sign in error:', err);
-        alert(`Sign in failed: ${err.message}`);
+        //console.error('Sign in error:', err);
+        //alert(`Sign in failed: ${err.message}`);
     });
 }
 
