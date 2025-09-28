@@ -905,3 +905,113 @@ html,body { height:100%; margin:0; background: linear-gradient(180deg,#071124 0%
     width: 100%;
   }
 }
+
+/* Responsive focus mode */
+@media (max-width: 768px) {
+  .focus-timer-ring {
+    width: 250px;
+    height: 250px;
+  }
+  
+  .focus-timer-time {
+    font-size: 48px;
+  }
+  
+  .focus-timer-mode {
+    font-size: 18px;
+  }
+  
+  .focus-controls {
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .focus-controls .btn {
+    width: 200px;
+  }
+
+  /* Fix Notes Drawer for Mobile - Keep Box Style but Make Opaque */
+  .drawer {
+    left: 50%;
+    top: 50%;
+    width: 90%;
+    max-width: 400px;
+    height: auto;
+    max-height: 80vh;
+    border-radius: 12px;
+    padding: 20px;
+    background: var(--panel); /* Solid opaque background instead of gradient */
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.8);
+    transform: translate(-50%, -50%) scale(0.95);
+    opacity: 0;
+    display: block;
+  }
+  
+  .drawer:not(.hidden) {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+  }
+  
+  .drawer.hidden {
+    transform: translate(-50%, -50%) scale(0.95);
+    opacity: 0;
+  }
+
+  /* Mobile drawer styling */
+  .note-form {
+    display: flex;
+    flex-direction: column;
+    height: auto;
+  }
+
+  /* Mobile Settings Modal Improvements */
+  .settings-modal-content {
+    width: 95%;
+    height: 90%;
+    max-height: 90vh;
+    overflow-y: auto;
+    margin: 5vh auto;
+    position: relative;
+  }
+
+  .modal-header {
+    position: sticky;
+    top: 0;
+    background: var(--panel);
+    z-index: 10;
+    padding: 20px 20px 16px 20px;
+    margin: -32px -32px 24px -32px;
+  }
+
+  .modal-header .btn.small {
+    min-width: 44px;
+    min-height: 44px;
+    font-size: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Improve touch targets for mobile */
+  .toggle-switch {
+    width: 60px;
+    height: 34px;
+  }
+
+  .toggle-slider:before {
+    height: 26px;
+    width: 26px;
+    left: 4px;
+    bottom: 4px;
+  }
+
+  .toggle-switch input:checked + .toggle-slider:before {
+    transform: translateX(26px);
+  }
+
+  .time-input, .interval-input {
+    min-height: 44px;
+    font-size: 18px;
+  }
+}
