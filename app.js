@@ -75,7 +75,7 @@ const joinSessionBtn = document.getElementById('join-session-btn');
 const leaveSessionBtn = document.getElementById('leave-session-btn');
 const sessionInfo = document.getElementById('session-info');
 const sessionId = document.getElementById('session-id');
-const participantCount = document.getElementById('participant-count');
+const participantsAvatars = document.getElementById('participants-avatars');
 const joinModal = document.getElementById('join-modal');
 const sessionCodeInput = document.getElementById('session-code-input');
 const confirmJoinBtn = document.getElementById('confirm-join');
@@ -277,6 +277,77 @@ function generateUsername() {
   const noun = nouns[Math.floor(Math.random() * nouns.length)];
   const num = Math.floor(Math.random() * 99) + 1;
   return `${adj}${noun}${num}`;
+}
+
+// Participant Avatar Functions
+function getInitials(name) {
+  if (!name) return '?';
+  const words = name.split(' ');
+  if (words.length >= 2) {
+    return (words[0][0] + words[1][0]).toUpperCase();
+  }
+  return name.substring(0, 2).toUpperCase();
+}
+
+function createParticipantAvatar(participantId, participantData, isHost) {
+  const avatar = document.createElement('div');
+  avatar.className = 'participant-avatar';
+  avatar.dataset.participantId = participantId;
+  
+  if (isHost) {
+    avatar.classList.add('is-admin');
+  }
+  
+  // Try to use Google profile photo if available (for current user)
+  if (participantId === state.user?.uid && state.user?.photoURL) {
+    const img = document.createElement('img');
+    img.src = state.user.photoURL;
+    img.alt = participantData.name;
+    avatar.appendChild(img);
+  } else {
+    // Use initials with color variation based on name
+    const colors = [
+      'linear-gradient(45deg, #ff6b6b, #ff8e8e)',
+      'linear-gradient(45deg, #4ecdc4, #6ee7df)', 
+      'linear-gradient(45deg, #45b7d1, #6cc9e8)',
+      'linear-gradient(45deg, #96ceb4, #b8e6d0)',
+      'linear-gradient(45deg, #feca57, #ffd777)',
+      'linear-gradient(45deg, #ff9ff3, #f368e0)',
+      'linear-gradient(45deg, #54a0ff, #7bed9f)'
+    ];
+    
+    // Simple hash function to get consistent color for same name
+    let hash = 0;
+    for (let i = 0; i < participantData.name.length; i++) {
+      hash = participantData.name.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const colorIndex = Math.abs(hash) % colors.length;
+    
+    avatar.style.background = colors[colorIndex];
+    avatar.textContent = getInitials(participantData.name);
+  }
+  
+  // Add tooltip with participant name
+  const tooltip = document.createElement('div');
+  tooltip.className = 'participant-tooltip';
+  tooltip.textContent = `${participantData.name}${isHost ? ' (Admin)' : ''}`;
+  avatar.appendChild(tooltip);
+  
+  return avatar;
+}
+
+function updateParticipantAvatars(participants, hostId) {
+  if (!participantsAvatars) return;
+  
+  // Clear existing avatars
+  participantsAvatars.innerHTML = '';
+  
+  // Create avatars for each participant
+  Object.entries(participants).forEach(([participantId, participantData]) => {
+    const isHost = participantId === hostId;
+    const avatar = createParticipantAvatar(participantId, participantData, isHost);
+    participantsAvatars.appendChild(avatar);
+  });
 }
 
 async function createSession() {
@@ -590,9 +661,10 @@ function listenToSession(sessionCode) {
     // Check if current user is the host (admin)
     state.isSessionHost = data.host === state.user.uid;
     
-    // Update participant count
-    const participants = Object.keys(data.participants || {}).length;
-    participantCount.textContent = `${participants} participant${participants !== 1 ? 's' : ''}`;
+    // Update participant avatars
+    if (data.participants) {
+      updateParticipantAvatars(data.participants, data.host);
+    }
     
     // Sync timer state from admin
     if (data.timer) {
@@ -713,19 +785,7 @@ function updateTimerControlsForRole() {
     }
   });
   
-  // Update session info to show admin status
-  if (state.session && sessionInfo && !sessionInfo.classList.contains('hidden')) {
-    let adminIndicator = document.getElementById('admin-indicator');
-    if (!adminIndicator) {
-      adminIndicator = document.createElement('span');
-      adminIndicator.id = 'admin-indicator';
-      adminIndicator.className = 'admin-indicator';
-      sessionInfo.appendChild(adminIndicator);
-    }
-    adminIndicator.textContent = state.isSessionHost ? ' (Admin)' : '';
-    adminIndicator.style.color = '#7c5cff';
-    adminIndicator.style.fontWeight = '600';
-  }
+  // Admin status is now shown in participant avatars, no need for separate indicator
 }
 
 function checkAdminPermission(action) {
