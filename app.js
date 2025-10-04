@@ -4,6 +4,7 @@ const state = {
   user: null,
   notes: [],
   session: null,
+  isSessionHost: false, // Track if current user is the session admin/host
   timer: {
     isRunning: false,
     isPaused: false,
@@ -362,10 +363,12 @@ async function createSession() {
     
     console.log('Session created successfully');
     state.session = sessionCode;
+    state.isSessionHost = true; // Set as host since user created the session
     state.chat.username = username;
     showSessionInfo(sessionCode);
     listenToSession(sessionCode);
     showChatToggle();
+    updateTimerControlsForRole(); // Update UI based on admin status
     
     // Start listening to chat immediately
     listenToChat();
@@ -461,11 +464,13 @@ async function joinSession(sessionCode) {
     });
     
     state.session = sessionCode;
+    state.isSessionHost = false; // Joining user is not the host
     state.chat.username = username;
     showSessionInfo(sessionCode);
     listenToSession(sessionCode);
     showChatToggle();
     hideJoinModal();
+    updateTimerControlsForRole(); // Update UI based on admin status
     
     // Start listening to chat immediately
     listenToChat();
@@ -483,9 +488,11 @@ async function leaveSession() {
   try {
     await rtdb.ref(`sessions/${state.session}/participants/${state.user.uid}`).remove();
     state.session = null;
+    state.isSessionHost = false; // Reset host status when leaving
     state.chat.username = null;
     hideSessionInfo();
     hideChatToggle();
+    updateTimerControlsForRole(); // Reset UI controls
     if (window.sessionListener) window.sessionListener();
     cleanupChat();
   } catch (err) {
@@ -580,15 +587,19 @@ function listenToSession(sessionCode) {
       return;
     }
     
+    // Check if current user is the host (admin)
+    state.isSessionHost = data.host === state.user.uid;
+    
     // Update participant count
     const participants = Object.keys(data.participants || {}).length;
     participantCount.textContent = `${participants} participant${participants !== 1 ? 's' : ''}`;
     
-    // Sync timer state
+    // Sync timer state from admin
     if (data.timer) {
       state.timer = { ...state.timer, ...data.timer };
       updateTimerDisplay();
       updateTimerProgress();
+      updateTimerButtons();
       
       if (data.timer.isRunning && !state.timer.interval) {
         startTimerInterval();
@@ -597,6 +608,9 @@ function listenToSession(sessionCode) {
         state.timer.interval = null;
       }
     }
+    
+    // Update timer controls based on admin status
+    updateTimerControlsForRole();
   });
 }
 
@@ -667,6 +681,84 @@ function getCurrentModeDuration() {
                               timerSettings.completedPomodoros % timerSettings.longBreakInterval === 0;
     return shouldBeLongBreak ? timerSettings.longBreak : timerSettings.shortBreak;
   }
+}
+
+// Admin Control Functions
+function updateTimerControlsForRole() {
+  const isAdmin = !state.session || state.isSessionHost; // Solo mode or admin in session
+  
+  // Enable/disable timer control buttons
+  if (startTimerBtn) startTimerBtn.disabled = !isAdmin;
+  if (pauseTimerBtn) pauseTimerBtn.disabled = !isAdmin;
+  if (resetTimerBtn) resetTimerBtn.disabled = !isAdmin;
+  if (focusStartBtn) focusStartBtn.disabled = !isAdmin;
+  if (focusPauseBtn) focusPauseBtn.disabled = !isAdmin;
+  if (focusResetBtn) focusResetBtn.disabled = !isAdmin;
+  
+  // Add visual indication and prevent all interactions for disabled state
+  const controlButtons = [startTimerBtn, pauseTimerBtn, resetTimerBtn, focusStartBtn, focusPauseBtn, focusResetBtn];
+  controlButtons.forEach(btn => {
+    if (btn) {
+      btn.style.opacity = isAdmin ? '1' : '0.5';
+      btn.style.cursor = isAdmin ? 'pointer' : 'not-allowed';
+      btn.style.pointerEvents = isAdmin ? 'auto' : 'none'; // Completely prevent clicks
+      btn.title = isAdmin ? '' : 'Only the room admin can control the timer';
+      
+      // Add/remove a CSS class for additional styling
+      if (isAdmin) {
+        btn.classList.remove('admin-disabled');
+      } else {
+        btn.classList.add('admin-disabled');
+      }
+    }
+  });
+  
+  // Update session info to show admin status
+  if (state.session && sessionInfo && !sessionInfo.classList.contains('hidden')) {
+    let adminIndicator = document.getElementById('admin-indicator');
+    if (!adminIndicator) {
+      adminIndicator = document.createElement('span');
+      adminIndicator.id = 'admin-indicator';
+      adminIndicator.className = 'admin-indicator';
+      sessionInfo.appendChild(adminIndicator);
+    }
+    adminIndicator.textContent = state.isSessionHost ? ' (Admin)' : '';
+    adminIndicator.style.color = '#7c5cff';
+    adminIndicator.style.fontWeight = '600';
+  }
+}
+
+function checkAdminPermission(action) {
+  if (state.session && !state.isSessionHost) {
+    alert(`Only the room admin can ${action} the timer.`);
+    return false;
+  }
+  return true;
+}
+
+// Wrapper functions for timer controls that check admin permission
+function handleStartTimer(e) {
+  e.preventDefault();
+  if (!checkAdminPermission('start')) {
+    return;
+  }
+  startTimer();
+}
+
+function handlePauseTimer(e) {
+  e.preventDefault();
+  if (!checkAdminPermission('pause')) {
+    return;
+  }
+  pauseTimer();
+}
+
+function handleResetTimer(e) {
+  e.preventDefault();
+  if (!checkAdminPermission('reset')) {
+    return;
+  }
+  resetTimer();
 }
 
 // Timer Functions
@@ -779,7 +871,8 @@ function startTimerInterval() {
       updateTimerDisplay();
       updateTimerProgress();
       
-      if (state.session) {
+      // Only admin updates the database in sessions
+      if (state.session && state.isSessionHost) {
         await rtdb.ref(`sessions/${state.session}/timer/timeLeft`).set(state.timer.timeLeft);
       }
     } else {
@@ -788,16 +881,19 @@ function startTimerInterval() {
       state.timer.interval = null;
       state.timer.isRunning = false;
       
-      // Play notification sound (simple beep)
+      // Play notification sound for everyone
       playNotificationSound();
       
-      // Handle timer completion with settings
+      // Handle timer completion (only admin can do this in sessions)
       handleTimerComplete();
     }
   }, 1000);
 }
 
 function handleTimerComplete() {
+  // Only admin can handle timer completion in sessions
+  if (state.session && !state.isSessionHost) return;
+  
   if (state.timer.mode === 'focus') {
     // Pomodoro completed
     timerSettings.completedPomodoros++;
@@ -837,7 +933,7 @@ function handleTimerComplete() {
   updateTimerProgress();
   updateTimerButtons();
   
-  // Sync with session if in collaborative mode
+  // Sync with session if in collaborative mode (only admin does this)
   if (state.session) {
     rtdb.ref(`sessions/${state.session}/timer`).update({
       isRunning: false,
@@ -1162,14 +1258,14 @@ confirmJoinBtn?.addEventListener('click', () => {
 });
 cancelJoinBtn?.addEventListener('click', hideJoinModal);
 
-startTimerBtn?.addEventListener('click', startTimer);
-pauseTimerBtn?.addEventListener('click', pauseTimer);
-resetTimerBtn?.addEventListener('click', resetTimer);
+startTimerBtn?.addEventListener('click', handleStartTimer);
+pauseTimerBtn?.addEventListener('click', handlePauseTimer);
+resetTimerBtn?.addEventListener('click', handleResetTimer);
 focusModeBtn?.addEventListener('click', enterFocusMode);
 
-focusStartBtn?.addEventListener('click', startTimer);
-focusPauseBtn?.addEventListener('click', pauseTimer);
-focusResetBtn?.addEventListener('click', resetTimer);
+focusStartBtn?.addEventListener('click', handleStartTimer);
+focusPauseBtn?.addEventListener('click', handlePauseTimer);
+focusResetBtn?.addEventListener('click', handleResetTimer);
 
 chatToggle?.addEventListener('click', toggleChat);
 closeChatBtn?.addEventListener('click', toggleChat);
@@ -1214,6 +1310,7 @@ document.addEventListener('DOMContentLoaded', () => {
   updateTimerDisplay();
   updateTimerProgress();
   updateTimerButtons();
+  updateTimerControlsForRole(); // Set initial timer control state
   
   // Run cleanup on app start (only once per session)
   if (!sessionStorage.getItem('cleanupRun')) {
