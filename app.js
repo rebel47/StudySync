@@ -342,12 +342,58 @@ function updateParticipantAvatars(participants, hostId) {
   // Clear existing avatars
   participantsAvatars.innerHTML = '';
   
-  // Create avatars for each participant
-  Object.entries(participants).forEach(([participantId, participantData]) => {
+  const MAX_VISIBLE_AVATARS = 5;
+  const participantEntries = Object.entries(participants);
+  const totalParticipants = participantEntries.length;
+  
+  // Show first 5 avatars
+  participantEntries.slice(0, MAX_VISIBLE_AVATARS).forEach(([participantId, participantData]) => {
     const isHost = participantId === hostId;
     const avatar = createParticipantAvatar(participantId, participantData, isHost);
     participantsAvatars.appendChild(avatar);
   });
+  
+  // Show "+N" indicator if there are more participants
+  if (totalParticipants > MAX_VISIBLE_AVATARS) {
+    const remaining = totalParticipants - MAX_VISIBLE_AVATARS;
+    const remainingParticipants = participantEntries.slice(MAX_VISIBLE_AVATARS);
+    
+    const moreIndicator = document.createElement('div');
+    moreIndicator.className = 'participant-avatar more-participants';
+    moreIndicator.textContent = `+${remaining}`;
+    
+    // Create dropdown with remaining participants
+    const dropdown = document.createElement('div');
+    dropdown.className = 'participants-dropdown';
+    
+    remainingParticipants.forEach(([participantId, participantData]) => {
+      const isHost = participantId === hostId;
+      const item = document.createElement('div');
+      item.className = 'dropdown-participant-item';
+      
+      const avatar = document.createElement('div');
+      avatar.className = 'dropdown-avatar';
+      
+      // Use Google photo if available, otherwise initials
+      if (participantData.photoURL) {
+        avatar.innerHTML = `<img src="${participantData.photoURL}" alt="${participantData.name}" />`;
+      } else {
+        avatar.textContent = getInitials(participantData.name);
+        avatar.style.background = getAvatarColor(participantData.name);
+      }
+      
+      const name = document.createElement('span');
+      name.className = 'dropdown-participant-name';
+      name.textContent = participantData.name + (isHost ? ' (Admin)' : '');
+      
+      item.appendChild(avatar);
+      item.appendChild(name);
+      dropdown.appendChild(item);
+    });
+    
+    moreIndicator.appendChild(dropdown);
+    participantsAvatars.appendChild(moreIndicator);
+  }
 }
 
 async function createSession() {
@@ -572,7 +618,8 @@ async function leaveSession() {
 }
 
 function showSessionInfo(sessionCode) {
-  sessionId.textContent = `Session: ${sessionCode}`;
+  sessionId.innerHTML = `Session: <strong>${sessionCode}</strong> <span class="copy-icon">📋</span>`;
+  sessionId.style.cursor = 'pointer';
   sessionInfo.classList.remove('hidden');
   createSessionBtn.classList.add('hidden');
   joinSessionBtn.classList.add('hidden');
@@ -1333,6 +1380,25 @@ closeChatBtn?.addEventListener('click', toggleChat);
 chatForm?.addEventListener('submit', (e) => {
   e.preventDefault();
   sendMessage(chatInput.value);
+});
+
+// Session code copy functionality
+sessionId?.addEventListener('click', () => {
+  if (!state.session) return;
+  
+  navigator.clipboard.writeText(state.session).then(() => {
+    // Visual feedback
+    const originalHTML = sessionId.innerHTML;
+    sessionId.innerHTML = `Session: <strong>${state.session}</strong> <span class="copy-icon">✓</span>`;
+    
+    // Show temporary success message
+    setTimeout(() => {
+      sessionId.innerHTML = originalHTML;
+    }, 2000);
+  }).catch(err => {
+    console.error('Failed to copy session code:', err);
+    alert('Failed to copy session code. Please copy it manually: ' + state.session);
+  });
 });
 
 // Add chat input event for auto-resize
