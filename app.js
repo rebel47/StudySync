@@ -1123,6 +1123,9 @@ function listenToChat() {
   // Clear existing messages in UI
   chatMessages.innerHTML = '';
   
+  // Track if this is the initial load
+  let isInitialLoad = true;
+  
   // Listen for all messages (including existing ones)
   window.chatListener = messagesRef.on('child_added', (snapshot) => {
     const message = snapshot.val();
@@ -1146,19 +1149,17 @@ function listenToChat() {
     chatMessages.appendChild(messageEl);
     chatMessages.scrollTop = chatMessages.scrollHeight;
     
-    // Handle unread count (only for new messages, not when loading history)
-    if (!state.chat.isOpen && !isOwnMessage && message.timestamp > Date.now() - 5000) {
+    // Handle unread count (only for new messages from others when chat is closed)
+    // Skip messages during initial load to avoid counting historical messages
+    if (!isInitialLoad && !state.chat.isOpen && !isOwnMessage) {
       state.chat.unreadCount++;
       updateUnreadCount();
-      
-      // Show browser notification
-      if ('Notification' in window && Notification.permission === 'granted') {
-        new Notification(`New message from ${message.sender}`, {
-          body: message.text,
-          icon: '/favicon.ico'
-        });
-      }
     }
+  });
+  
+  // After initial messages are loaded, mark as ready to count new messages
+  messagesRef.once('value', () => {
+    isInitialLoad = false;
   });
   
   console.log('Started listening to chat for session:', state.session);
