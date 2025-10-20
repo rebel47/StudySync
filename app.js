@@ -638,6 +638,17 @@ async function leaveSession() {
     // Remove current user from participants
     await rtdb.ref(`sessions/${state.session}/participants/${state.user.uid}`).remove();
     
+    // IMPORTANT: Clean up session listener FIRST to prevent re-syncing
+    if (window.sessionListener) {
+      sessionRef.off('value', window.sessionListener);
+      window.sessionListener = null;
+    }
+    
+    // Clear session state
+    state.session = null;
+    state.isSessionHost = false;
+    state.chat.username = null;
+    
     // Stop and reset timer to default state
     if (state.timer.interval) {
       clearInterval(state.timer.interval);
@@ -654,13 +665,10 @@ async function leaveSession() {
     updateTimerProgress();
     updateTimerButtons();
     
-    state.session = null;
-    state.isSessionHost = false; // Reset host status when leaving
-    state.chat.username = null;
+    // Hide UI elements
     hideSessionInfo();
     hideChatToggle();
     updateTimerControlsForRole(); // Reset UI controls
-    if (window.sessionListener) window.sessionListener();
     cleanupChat();
   } catch (err) {
     console.error(err);
