@@ -639,9 +639,10 @@ async function leaveSession() {
     await rtdb.ref(`sessions/${state.session}/participants/${state.user.uid}`).remove();
     
     // IMPORTANT: Clean up session listener FIRST to prevent re-syncing
-    if (window.sessionListener) {
-      sessionRef.off('value', window.sessionListener);
-      window.sessionListener = null;
+    if (window.sessionListenerRef && window.sessionListenerCallback) {
+      window.sessionListenerRef.off('value', window.sessionListenerCallback);
+      window.sessionListenerRef = null;
+      window.sessionListenerCallback = null;
     }
     
     // Clear session state
@@ -755,8 +756,14 @@ if (startStudyModal) {
 function listenToSession(sessionCode) {
   const sessionRef = rtdb.ref(`sessions/${sessionCode}`);
   
-  if (window.sessionListener) window.sessionListener();
-  window.sessionListener = sessionRef.on('value', (snapshot) => {
+  // Clean up any existing listener
+  if (window.sessionListenerRef && window.sessionListenerCallback) {
+    window.sessionListenerRef.off('value', window.sessionListenerCallback);
+  }
+  
+  // Store both ref and callback for proper cleanup
+  window.sessionListenerRef = sessionRef;
+  window.sessionListenerCallback = (snapshot) => {
     const data = snapshot.val();
     if (!data) {
       leaveSession();
@@ -797,7 +804,9 @@ function listenToSession(sessionCode) {
     
     // Update timer controls based on admin status
     updateTimerControlsForRole();
-  });
+  };
+  
+  sessionRef.on('value', window.sessionListenerCallback);
 }
 
 // Settings Functions
