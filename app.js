@@ -638,6 +638,22 @@ async function leaveSession() {
     // Remove current user from participants
     await rtdb.ref(`sessions/${state.session}/participants/${state.user.uid}`).remove();
     
+    // Stop and reset timer to default state
+    if (state.timer.interval) {
+      clearInterval(state.timer.interval);
+      state.timer.interval = null;
+    }
+    state.timer.isRunning = false;
+    state.timer.isPaused = false;
+    state.timer.mode = 'focus';
+    state.timer.timeLeft = getCurrentModeDuration() * 60;
+    state.timer.totalTime = getCurrentModeDuration() * 60;
+    
+    // Update UI to reflect reset timer
+    updateTimerDisplay();
+    updateTimerProgress();
+    updateTimerButtons();
+    
     state.session = null;
     state.isSessionHost = false; // Reset host status when leaving
     state.chat.username = null;
