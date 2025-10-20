@@ -1251,11 +1251,13 @@ function listenToChat() {
   
   const messagesRef = rtdb.ref(`sessions/${state.session}/messages`);
   
-  // Clean up existing listener
-  if (window.chatListener) {
-    window.chatListener();
-    window.chatListener = null;
+  // Clean up existing listener properly
+  if (window.chatListenerRef && window.chatListenerCallback) {
+    window.chatListenerRef.off('child_added', window.chatListenerCallback);
   }
+  
+  // Store the ref for cleanup
+  window.chatListenerRef = messagesRef;
   
   // Clear existing messages in UI
   chatMessages.innerHTML = '';
@@ -1263,8 +1265,8 @@ function listenToChat() {
   // Track if this is the initial load
   let isInitialLoad = true;
   
-  // Listen for all messages (including existing ones)
-  window.chatListener = messagesRef.on('child_added', (snapshot) => {
+  // Create and store the callback
+  window.chatListenerCallback = (snapshot) => {
     const message = snapshot.val();
     if (!message) return;
     
@@ -1292,7 +1294,10 @@ function listenToChat() {
       state.chat.unreadCount++;
       updateUnreadCount();
     }
-  });
+  };
+  
+  // Attach the listener
+  messagesRef.on('child_added', window.chatListenerCallback);
   
   // After initial messages are loaded, mark as ready to count new messages
   messagesRef.once('value', () => {
@@ -1342,13 +1347,17 @@ async function sendMessage(text) {
 
 // Clean up chat when leaving session
 function cleanupChat() {
-  if (window.chatListener) {
-    window.chatListener();
-    window.chatListener = null;
+  // Properly clean up Firebase listener
+  if (window.chatListenerRef && window.chatListenerCallback) {
+    window.chatListenerRef.off('child_added', window.chatListenerCallback);
+    window.chatListenerRef = null;
+    window.chatListenerCallback = null;
   }
   
   // Clear chat messages
-  chatMessages.innerHTML = '';
+  if (chatMessages) {
+    chatMessages.innerHTML = '';
+  }
   state.chat.unreadCount = 0;
   updateUnreadCount();
 }
