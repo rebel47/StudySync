@@ -463,7 +463,8 @@ async function createSession() {
       participants: {
         [state.user.uid]: {
           name: username,
-          joined: firebase.database.ServerValue.TIMESTAMP
+          joined: firebase.database.ServerValue.TIMESTAMP,
+          photoURL: state.user.photoURL || null
         }
       }
     });
@@ -577,7 +578,8 @@ async function joinSession(sessionCode) {
     // Add user to session
     await sessionRef.child(`participants/${state.user.uid}`).set({
       name: username,
-      joined: firebase.database.ServerValue.TIMESTAMP
+      joined: firebase.database.ServerValue.TIMESTAMP,
+      photoURL: state.user.photoURL || null
     });
     
     state.session = sessionCode;
@@ -603,7 +605,37 @@ async function leaveSession() {
   if (!state.session || !state.user) return;
   
   try {
+    const sessionRef = rtdb.ref(`sessions/${state.session}`);
+    
+    // Check if current user is the admin
+    if (state.isSessionHost) {
+      // Get all participants
+      const snapshot = await sessionRef.child('participants').once('value');
+      const participants = snapshot.val();
+      
+      if (participants) {
+        // Remove current user from participants list
+        delete participants[state.user.uid];
+        
+        // If there are remaining participants, transfer admin to the earliest joiner
+        const remainingParticipants = Object.entries(participants);
+        
+        if (remainingParticipants.length > 0) {
+          // Sort by joined timestamp (earliest first)
+          remainingParticipants.sort((a, b) => (a[1].joined || 0) - (b[1].joined || 0));
+          
+          // Transfer admin to the earliest joiner
+          const newAdminId = remainingParticipants[0][0];
+          await sessionRef.child('host').set(newAdminId);
+          
+          console.log(`Admin transferred to ${remainingParticipants[0][1].name}`);
+        }
+      }
+    }
+    
+    // Remove current user from participants
     await rtdb.ref(`sessions/${state.session}/participants/${state.user.uid}`).remove();
+    
     state.session = null;
     state.isSessionHost = false; // Reset host status when leaving
     state.chat.username = null;
@@ -705,8 +737,17 @@ function listenToSession(sessionCode) {
       return;
     }
     
-    // Check if current user is the host (admin)
-    state.isSessionHost = data.host === state.user.uid;
+    // Check if current user became the new admin
+    const wasAdmin = state.isSessionHost;
+    const isNowAdmin = data.host === state.user.uid;
+    
+    // Notify user if they just became admin
+    if (!wasAdmin && isNowAdmin) {
+      alert('🎯 You are now the session admin! You can control the timer.');
+    }
+    
+    // Update admin status
+    state.isSessionHost = isNowAdmin;
     
     // Update participant avatars
     if (data.participants) {
