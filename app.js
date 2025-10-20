@@ -937,7 +937,8 @@ function updateTimerDisplay() {
 function updateTimerProgress() {
   // Use the stored totalTime instead of recalculating from local settings
   const totalTime = state.timer.totalTime || (getCurrentModeDuration() * 60);
-  const progress = state.timer.timeLeft / totalTime; // Progress = time remaining (inverted)
+  //const progress = state.timer.timeLeft / totalTime; // Progress = time remaining (inverted)
+  const progress = (totalTime - state.timer.timeLeft) / totalTime; // Progress = time elapsed (fills as time passes)
   const circumference = 2 * Math.PI * 54; // radius = 54
   const offset = circumference * (1 - progress);
   
