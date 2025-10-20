@@ -9,6 +9,7 @@ const state = {
     isRunning: false,
     isPaused: false,
     timeLeft: 25 * 60, // 25 minutes in seconds
+    totalTime: 25 * 60, // Total duration for the current timer session
     mode: 'focus', // 'focus' or 'break'
     interval: null
   },
@@ -456,6 +457,7 @@ async function createSession() {
       expiresAt: now + (6 * 60 * 60 * 1000), // Auto-expire in 6 hours
       timer: {
         timeLeft: getCurrentModeDuration() * 60,
+        totalTime: getCurrentModeDuration() * 60,
         mode: state.timer.mode,
         isRunning: false,
         isPaused: false
@@ -784,6 +786,7 @@ function loadSettings() {
     if (!state.timer.isRunning) {
       const currentDuration = getCurrentModeDuration();
       state.timer.timeLeft = currentDuration * 60;
+      state.timer.totalTime = currentDuration * 60; // Also update totalTime
       updateTimerDisplay();
       updateTimerProgress();
     }
@@ -932,8 +935,9 @@ function updateTimerDisplay() {
 }
 
 function updateTimerProgress() {
-  const totalTime = getCurrentModeDuration() * 60;
-  const progress = (totalTime - state.timer.timeLeft) / totalTime;
+  // Use the stored totalTime instead of recalculating from local settings
+  const totalTime = state.timer.totalTime || (getCurrentModeDuration() * 60);
+  const progress = state.timer.timeLeft / totalTime; // Progress = time remaining (inverted)
   const circumference = 2 * Math.PI * 54; // radius = 54
   const offset = circumference * (1 - progress);
   
@@ -953,12 +957,18 @@ async function startTimer() {
   state.timer.isRunning = true;
   state.timer.isPaused = false;
   
+  // Set totalTime when starting (for accurate progress calculation)
+  if (!state.timer.isPaused || state.timer.totalTime === undefined) {
+    state.timer.totalTime = state.timer.timeLeft;
+  }
+  
   // If in a session, sync with other participants
   if (state.session) {
     await rtdb.ref(`sessions/${state.session}/timer`).update({
       isRunning: true,
       isPaused: false,
       timeLeft: state.timer.timeLeft,
+      totalTime: state.timer.totalTime,
       mode: state.timer.mode
     });
   }
@@ -990,12 +1000,14 @@ async function resetTimer() {
   state.timer.isRunning = false;
   state.timer.isPaused = false;
   state.timer.timeLeft = getCurrentModeDuration() * 60;
+  state.timer.totalTime = state.timer.timeLeft; // Reset totalTime as well
   
   if (state.session) {
     await rtdb.ref(`sessions/${state.session}/timer`).update({
       isRunning: false,
       isPaused: false,
       timeLeft: state.timer.timeLeft,
+      totalTime: state.timer.totalTime,
       mode: state.timer.mode
     });
   }
@@ -1052,6 +1064,7 @@ function handleTimerComplete() {
     
     state.timer.mode = 'break';
     state.timer.timeLeft = nextDuration * 60;
+    state.timer.totalTime = nextDuration * 60; // Update totalTime for new mode
     state.timer.isRunning = false;
     
     const breakType = shouldBeLongBreak ? 'Long' : 'Short';
@@ -1066,6 +1079,7 @@ function handleTimerComplete() {
     // Break completed
     state.timer.mode = 'focus';
     state.timer.timeLeft = timerSettings.pomodoro * 60;
+    state.timer.totalTime = timerSettings.pomodoro * 60; // Update totalTime for new mode
     state.timer.isRunning = false;
     
     //alert(`Break complete! Time to focus (${timerSettings.pomodoro} minutes).`);
@@ -1086,7 +1100,8 @@ function handleTimerComplete() {
     rtdb.ref(`sessions/${state.session}/timer`).update({
       isRunning: false,
       mode: state.timer.mode,
-      timeLeft: state.timer.timeLeft
+      timeLeft: state.timer.timeLeft,
+      totalTime: state.timer.totalTime
     });
   }
 }
