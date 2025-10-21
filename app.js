@@ -125,6 +125,7 @@ const saveSettingsBtn = document.getElementById('save-settings');
 function setLoading(on) { if (loadingEl) loadingEl.classList.toggle('hidden', !on); }
 
 function renderNotes() {
+  console.log('Rendering notes, count:', state.notes.length);
   notesGrid.querySelectorAll('.note-card, .empty').forEach(n => n.remove());
   setLoading(false);
   if (!state.notes.length) {
@@ -253,12 +254,24 @@ auth.onAuthStateChanged(user => {
 function listenNotes() {
   if (!state.user) return;
   setLoading(true);
+  
   const notesRef = db.collection('users').doc(state.user.uid).collection('notes').orderBy('updatedAt', 'desc');
-  if (window.unsubscribeNotes) window.unsubscribeNotes();
+  
+  // Clean up existing listener
+  if (window.unsubscribeNotes) {
+    window.unsubscribeNotes();
+  }
+  
+  // Set up real-time listener
   window.unsubscribeNotes = notesRef.onSnapshot(snapshot => {
+    console.log('Notes snapshot received, count:', snapshot.size);
     state.notes = snapshot.docs;
     renderNotes();
-  }, err => { console.error(err); setLoading(false); });
+    setLoading(false);
+  }, err => { 
+    console.error('Notes listener error:', err); 
+    setLoading(false); 
+  });
 }
 
 // Study Session Functions
