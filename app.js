@@ -255,6 +255,9 @@ function listenNotes() {
   if (!state.user) return;
   setLoading(true);
   
+  console.log('Setting up notes listener for user:', state.user.uid);
+  console.log('User email:', state.user.email);
+  
   const notesRef = db.collection('users').doc(state.user.uid).collection('notes').orderBy('updatedAt', 'desc');
   
   // Clean up existing listener
