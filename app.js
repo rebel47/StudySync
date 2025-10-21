@@ -138,15 +138,22 @@ function renderNotes() {
 
   state.notes.forEach(doc => {
     const data = doc.data();
+    
+    // Parse content - mobile stores everything in 'content' field
+    const fullContent = data.content || '';
+    const lines = fullContent.split('\n');
+    const title = lines[0] || 'Untitled';
+    const content = lines.slice(2).join('\n') || ''; // Skip title and empty line
+    
     const card = document.createElement('div');
     card.className = 'note-card';
     card.innerHTML = `
       <div>
-        <div class="note-title">${escapeHtml(data.title || '')}</div>
-        <div class="note-body">${escapeHtml(data.content || '')}</div>
+        <div class="note-title">${escapeHtml(title)}</div>
+        <div class="note-body">${escapeHtml(content)}</div>
       </div>
       <div class="note-meta">
-        <div class="small">${new Date(data.updatedAt?.toDate?.() || data.createdAt?.toDate?.() || Date.now()).toLocaleString()}</div>
+        <div class="small">${new Date(data.timestamp?.toDate?.() || Date.now()).toLocaleString()}</div>
         <div>
           <button class="btn ghost edit-btn" data-id="${doc.id}">Edit</button>
           <button class="btn ghost delete-btn" data-id="${doc.id}">Delete</button>
@@ -185,11 +192,14 @@ noteForm.addEventListener('submit', async (e) => {
   try {
     if (editId) {
       await db.collection('users').doc(state.user.uid).collection('notes').doc(editId).update({
-        title, content, updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        content: `${title}\n\n${content}`, // Combine title and content like mobile
+        timestamp: firebase.firestore.FieldValue.serverTimestamp()
       });
     } else {
       await db.collection('users').doc(state.user.uid).collection('notes').add({
-        title, content, createdAt: firebase.firestore.FieldValue.serverTimestamp(), updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        content: `${title}\n\n${content}`, // Combine title and content like mobile
+        timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+        userId: state.user.uid
       });
     }
     closeDrawer();
@@ -202,8 +212,15 @@ async function onEdit(e) {
   const id = e.currentTarget.dataset.id;
   const doc = await db.collection('users').doc(state.user.uid).collection('notes').doc(id).get();
   const data = doc.data();
-  titleInput.value = data.title || '';
-  contentInput.value = data.content || '';
+  
+  // Parse content from mobile format
+  const fullContent = data.content || '';
+  const lines = fullContent.split('\n');
+  const title = lines[0] || '';
+  const content = lines.slice(2).join('\n') || ''; // Skip title and empty line
+  
+  titleInput.value = title;
+  contentInput.value = content;
   noteForm.dataset.editId = id;
   openDrawer();
 }
@@ -258,7 +275,7 @@ function listenNotes() {
   console.log('Setting up notes listener for user:', state.user.uid);
   console.log('User email:', state.user.email);
   
-  const notesRef = db.collection('users').doc(state.user.uid).collection('notes').orderBy('updatedAt', 'desc');
+  const notesRef = db.collection('users').doc(state.user.uid).collection('notes').orderBy('timestamp', 'desc');
   
   // Clean up existing listener
   if (window.unsubscribeNotes) {
