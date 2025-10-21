@@ -125,7 +125,6 @@ const saveSettingsBtn = document.getElementById('save-settings');
 function setLoading(on) { if (loadingEl) loadingEl.classList.toggle('hidden', !on); }
 
 function renderNotes() {
-  console.log('Rendering notes, count:', state.notes.length);
   notesGrid.querySelectorAll('.note-card, .empty').forEach(n => n.remove());
   setLoading(false);
   if (!state.notes.length) {
@@ -265,9 +264,6 @@ function listenNotes() {
   if (!state.user) return;
   setLoading(true);
   
-  console.log('Setting up notes listener for user:', state.user.uid);
-  console.log('User email:', state.user.email);
-  
   const notesRef = db.collection('users').doc(state.user.uid).collection('notes').orderBy('timestamp', 'desc');
   
   // Clean up existing listener
@@ -277,7 +273,6 @@ function listenNotes() {
   
   // Set up real-time listener
   window.unsubscribeNotes = notesRef.onSnapshot(snapshot => {
-    console.log('Notes snapshot received, count:', snapshot.size);
     state.notes = snapshot.docs;
     renderNotes();
     setLoading(false);
