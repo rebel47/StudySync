@@ -139,11 +139,8 @@ function renderNotes() {
   state.notes.forEach(doc => {
     const data = doc.data();
     
-    // Parse content - mobile stores everything in 'content' field
-    const fullContent = data.content || '';
-    const lines = fullContent.split('\n');
-    const title = lines[0] || 'Untitled';
-    const content = lines.slice(2).join('\n') || ''; // Skip title and empty line
+    const title = data.title || 'Untitled';
+    const content = data.content || '';
     
     const card = document.createElement('div');
     card.className = 'note-card';
@@ -192,12 +189,14 @@ noteForm.addEventListener('submit', async (e) => {
   try {
     if (editId) {
       await db.collection('users').doc(state.user.uid).collection('notes').doc(editId).update({
-        content: `${title}\n\n${content}`, // Combine title and content like mobile
+        title: title,
+        content: content,
         timestamp: firebase.firestore.FieldValue.serverTimestamp()
       });
     } else {
       await db.collection('users').doc(state.user.uid).collection('notes').add({
-        content: `${title}\n\n${content}`, // Combine title and content like mobile
+        title: title,
+        content: content,
         timestamp: firebase.firestore.FieldValue.serverTimestamp(),
         userId: state.user.uid
       });
@@ -213,14 +212,8 @@ async function onEdit(e) {
   const doc = await db.collection('users').doc(state.user.uid).collection('notes').doc(id).get();
   const data = doc.data();
   
-  // Parse content from mobile format
-  const fullContent = data.content || '';
-  const lines = fullContent.split('\n');
-  const title = lines[0] || '';
-  const content = lines.slice(2).join('\n') || ''; // Skip title and empty line
-  
-  titleInput.value = title;
-  contentInput.value = content;
+  titleInput.value = data.title || '';
+  contentInput.value = data.content || '';
   noteForm.dataset.editId = id;
   openDrawer();
 }
